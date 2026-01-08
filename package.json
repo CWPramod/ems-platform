@@ -1,0 +1,23 @@
+{
+  "name": "ems-platform",
+  "version": "0.1.0",
+  "description": "Enterprise Management System - Full Observability Platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo 'Development server starting...'",
+    "build": "echo 'Building all apps...'",
+    "test": "echo 'Running tests...'"
+  },
+  "keywords": [
+    "observability",
+    "monitoring",
+    "ai-correlation",
+    "ems"
+  ],
+  "author": "Canaris",
+  "license": "PROPRIETARY"
+}
