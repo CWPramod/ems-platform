@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AssetsModule } from './assets/assets.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -30,6 +31,8 @@ import { MetricsModule } from './metrics/metrics.module';
     AssetsModule,
 
     MetricsModule,
+
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
