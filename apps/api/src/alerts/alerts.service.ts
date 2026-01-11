@@ -2,12 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert, AlertStatus } from '../entities/alert.entity';
+import { MLIntegrationService } from '../services/ml-integration.service';
 
 @Injectable()
 export class AlertsService {
   constructor(
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
+    private mlIntegrationService: MLIntegrationService,
   ) {}
 
   async create(alertData: Partial<Alert>): Promise<Alert> {
@@ -15,6 +17,29 @@ export class AlertsService {
       ...alertData,
       status: AlertStatus.OPEN,
     });
+
+    // Enhance with ML predictions if ML service is available
+    const mlAvailable = await this.mlIntegrationService.isMLServiceAvailable();
+    
+    if (mlAvailable && alertData.eventId) {
+      try {
+        // Get business impact from ML
+        const impactResult = await this.mlIntegrationService.calculateBusinessImpact(
+          { severity: 'critical' }, // You can pass the actual event
+          alertData.rootCauseAssetId ? 1 : 3, // Estimate tier
+          0, // related events count
+        );
+
+        if (impactResult) {
+          alert.businessImpactScore = impactResult.business_impact_score;
+          alert.affectedUsers = impactResult.affected_users;
+          alert.revenueAtRisk = impactResult.revenue_at_risk;
+        }
+      } catch (error) {
+        console.log('ML enhancement failed, creating alert without ML data');
+      }
+    }
+
     return await this.alertsRepository.save(alert);
   }
 

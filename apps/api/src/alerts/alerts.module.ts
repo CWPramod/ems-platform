@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Alert } from '../entities/alert.entity';
 import { AlertsController } from './alerts.controller';
 import { AlertsService } from './alerts.service';
+import { MLIntegrationService } from '../services/ml-integration.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Alert])],
   controllers: [AlertsController],
-  providers: [AlertsService],
+  providers: [AlertsService, MLIntegrationService],
   exports: [AlertsService],
 })
 export class AlertsModule {}
