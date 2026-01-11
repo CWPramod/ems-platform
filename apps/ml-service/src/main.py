@@ -8,11 +8,12 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from api.ml_routes import router as ml_router
+from api.enhanced_ml_routes import router as enhanced_ml_router
 
 app = FastAPI(
     title="EMS ML Service",
     description="Machine Learning service for anomaly detection and root cause analysis",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 # Enable CORS for NestJS API
@@ -26,16 +27,18 @@ app.add_middleware(
 
 # Include ML routes
 app.include_router(ml_router)
+app.include_router(enhanced_ml_router)
 
 @app.get("/")
 async def root():
     return {
         "service": "EMS ML Service",
-        "version": "1.0.0",
+        "version": "2.0.0",
         "status": "running",
         "endpoints": {
             "health": "/health",
-            "ml_endpoints": "/ml/*",
+            "ml_basic": "/ml/*",
+            "ml_enhanced": "/ml/enhanced/*",
             "docs": "/docs"
         }
     }
