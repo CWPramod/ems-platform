@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from api.ml_routes import router as ml_router
 from api.enhanced_ml_routes import router as enhanced_ml_router
+from api.correlation_routes import router as correlation_router
 
 app = FastAPI(
     title="EMS ML Service",
@@ -28,17 +29,19 @@ app.add_middleware(
 # Include ML routes
 app.include_router(ml_router)
 app.include_router(enhanced_ml_router)
+app.include_router(correlation_router)
 
 @app.get("/")
 async def root():
     return {
         "service": "EMS ML Service",
-        "version": "2.0.0",
+        "version": "2.1.0",
         "status": "running",
         "endpoints": {
             "health": "/health",
             "ml_basic": "/ml/*",
             "ml_enhanced": "/ml/enhanced/*",
+            "ml_correlation": "/ml/correlation/*",
             "docs": "/docs"
         }
     }
