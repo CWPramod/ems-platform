@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import sys
 import os
+from api.persistence_routes import router as persistence_router
 
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -14,7 +15,7 @@ from api.correlation_routes import router as correlation_router
 app = FastAPI(
     title="EMS ML Service",
     description="Machine Learning service for anomaly detection and root cause analysis",
-    version="2.0.0"
+    version="2.2.0"
 )
 
 # Enable CORS for NestJS API
@@ -30,18 +31,20 @@ app.add_middleware(
 app.include_router(ml_router)
 app.include_router(enhanced_ml_router)
 app.include_router(correlation_router)
+app.include_router(persistence_router)
 
 @app.get("/")
 async def root():
     return {
         "service": "EMS ML Service",
-        "version": "2.1.0",
+        "version": "2.2.0",
         "status": "running",
         "endpoints": {
             "health": "/health",
             "ml_basic": "/ml/*",
             "ml_enhanced": "/ml/enhanced/*",
             "ml_correlation": "/ml/correlation/*",
+            "ml_models": "/ml/models/*",
             "docs": "/docs"
         }
     }
