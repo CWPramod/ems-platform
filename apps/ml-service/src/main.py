@@ -3,8 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import sys
 import os
-from api.persistence_routes import router as persistence_router
-from api.multi_metric_routes import router as multi_metric_router
 
 # Add current directory to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -12,6 +10,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from api.ml_routes import router as ml_router
 from api.enhanced_ml_routes import router as enhanced_ml_router
 from api.correlation_routes import router as correlation_router
+from api.persistence_routes import router as persistence_router
+from api.multi_metric_routes import router as multi_metric_router
 
 app = FastAPI(
     title="EMS ML Service",
@@ -19,10 +19,10 @@ app = FastAPI(
     version="2.3.0"
 )
 
-# Enable CORS for NestJS API
+# Enable CORS for NestJS API and React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3100"],
+    allow_origins=["http://localhost:3100", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,7 +48,7 @@ async def root():
             "ml_correlation": "/ml/correlation/*",
             "ml_models": "/ml/models/*",
             "ml_multi_metric": "/ml/multi-metric/*",
-	    "docs": "/docs"
+            "docs": "/docs"
         }
     }
 
