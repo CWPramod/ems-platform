@@ -7,6 +7,7 @@ import { AssetsModule } from './assets/assets.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { EventsModule } from './events/events.module';
 import { AlertsModule } from './alerts/alerts.module';
+import { CloudModule } from './cloud/cloud.module';
 
 @Module({
   imports: [
@@ -36,6 +37,8 @@ import { AlertsModule } from './alerts/alerts.module';
     EventsModule,
 
     AlertsModule,
+
+    CloudModule,
   ],
   controllers: [AppController],
   providers: [AppService],
