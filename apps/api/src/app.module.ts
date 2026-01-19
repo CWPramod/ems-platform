@@ -8,6 +8,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { EventsModule } from './events/events.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { CloudModule } from './cloud/cloud.module';
+import { ApmModule } from './apm/apm.module';
 
 @Module({
   imports: [
@@ -39,6 +40,8 @@ import { CloudModule } from './cloud/cloud.module';
     AlertsModule,
 
     CloudModule,
+
+    ApmModule,
   ],
   controllers: [AppController],
   providers: [AppService],

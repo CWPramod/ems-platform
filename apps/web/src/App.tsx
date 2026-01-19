@@ -6,6 +6,7 @@ import Alerts from './pages/Alerts';
 import Metrics from './pages/Metrics';
 import Correlations from './pages/Correlations';
 import Cloud from './pages/Cloud';
+import APM from './pages/APM';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="metrics" element={<Metrics />} />
         <Route path="correlations" element={<Correlations />} />
         <Route path="cloud" element={<Cloud />} />
+        <Route path="apm" element={<APM />} />
 
       </Route>
     </Routes>
