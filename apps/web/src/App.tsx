@@ -5,6 +5,7 @@ import Assets from './pages/Assets';
 import Alerts from './pages/Alerts';
 import Metrics from './pages/Metrics';
 import Correlations from './pages/Correlations';
+import Cloud from './pages/Cloud';
 
 function App() {
   return (
@@ -15,6 +16,8 @@ function App() {
         <Route path="alerts" element={<Alerts />} />
         <Route path="metrics" element={<Metrics />} />
         <Route path="correlations" element={<Correlations />} />
+        <Route path="cloud" element={<Cloud />} />
+
       </Route>
     </Routes>
   );

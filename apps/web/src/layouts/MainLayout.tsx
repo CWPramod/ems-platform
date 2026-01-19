@@ -26,6 +26,7 @@ const MainLayout = () => {
     { path: '/alerts', label: 'Alerts', icon: '🚨' },
     { path: '/metrics', label: 'Metrics', icon: '📈' },
     { path: '/correlations', label: 'Correlations', icon: '🔗' },
+    { path: '/cloud', label: 'Cloud', icon: '☁️' }, 
   ];
 
   const isActive = (path: string) => {
