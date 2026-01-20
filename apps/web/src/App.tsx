@@ -7,6 +7,7 @@ import Metrics from './pages/Metrics';
 import Correlations from './pages/Correlations';
 import Cloud from './pages/Cloud';
 import APM from './pages/APM';
+import Network from './pages/Network';
 
 function App() {
   return (
@@ -19,7 +20,7 @@ function App() {
         <Route path="correlations" element={<Correlations />} />
         <Route path="cloud" element={<Cloud />} />
         <Route path="apm" element={<APM />} />
-
+        <Route path="network" element={<Network />} />
       </Route>
     </Routes>
   );

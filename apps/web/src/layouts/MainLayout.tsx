@@ -4,7 +4,11 @@ import { healthAPI } from '../services/api';
 
 const MainLayout = () => {
   const location = useLocation();
-  const [backendStatus, setBackendStatus] = useState({ nestjs: false, ml: false });
+  const [backendStatus, setBackendStatus] = useState({ 
+    nestjs: false, 
+    ml: false,
+    nms: false 
+  });
 
   useEffect(() => {
     checkBackends();
@@ -13,11 +17,12 @@ const MainLayout = () => {
   }, []);
 
   const checkBackends = async () => {
-    const [nestjs, ml] = await Promise.all([
+    const [nestjs, ml, nms] = await Promise.all([
       healthAPI.checkNestJS(),
       healthAPI.checkML(),
+      healthAPI.checkNMS(),
     ]);
-    setBackendStatus({ nestjs, ml });
+    setBackendStatus({ nestjs, ml, nms });
   };
 
   const navItems = [
@@ -26,8 +31,9 @@ const MainLayout = () => {
     { path: '/alerts', label: 'Alerts', icon: '🚨' },
     { path: '/metrics', label: 'Metrics', icon: '📈' },
     { path: '/correlations', label: 'Correlations', icon: '🔗' },
-    { path: '/cloud', label: 'Cloud', icon: '☁️' }, 
+    { path: '/cloud', label: 'Cloud', icon: '☁️' },
     { path: '/apm', label: 'APM', icon: '⚡' },
+    { path: '/network', label: 'Network', icon: '🌐' },
   ];
 
   const isActive = (path: string) => {
@@ -73,6 +79,10 @@ const MainLayout = () => {
             <div className="flex items-center gap-2">
               <div className={`w-2 h-2 rounded-full ${backendStatus.ml ? 'bg-green-500' : 'bg-red-500'}`} />
               <span className="text-sm">ML Service</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${backendStatus.nms ? 'bg-green-500' : 'bg-red-500'}`} />
+              <span className="text-sm">NMS Service</span>
             </div>
           </div>
         </div>

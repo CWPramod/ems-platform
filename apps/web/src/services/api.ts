@@ -9,11 +9,14 @@ import type {
   RootCauseResult,
   CorrelationResult,
   HealthScore,
+  NMSStatus,
+  DeviceMetric,
 } from '../types';
 
 // API Base URLs
 const NEST_API_BASE = 'http://localhost:3100';
 const ML_API_BASE = 'http://localhost:8000';
+const NMS_API_BASE = 'http://localhost:3001';
 
 // Create axios instances
 const nestAPI = axios.create({
@@ -25,6 +28,13 @@ const nestAPI = axios.create({
 
 const mlAPIClient = axios.create({
   baseURL: ML_API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+const nmsAPIClient = axios.create({
+  baseURL: NMS_API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -105,7 +115,7 @@ export const eventsAPI = {
     return response.data;
   },
 
-  create: async (event: Omit<Event, 'id' | 'firstOccurrence' | 'lastOccurrence' | 'occurrenceCount' | 'createdAt'>): Promise<Event> => {
+  create: async (event: Omit<Event, 'id' | 'createdAt'>): Promise<Event> => {
     const response = await nestAPI.post('/events', event);
     return response.data;
   },
@@ -118,8 +128,9 @@ export const eventsAPI = {
 export const alertsAPI = {
   getAll: async (params?: {
     status?: string;
+    severity?: string;
     sortBy?: string;
-    order?: 'asc' | 'desc';
+    order?: string;
   }): Promise<PaginatedResponse<Alert>> => {
     const response = await nestAPI.get('/alerts', { params });
     return response.data;
@@ -130,160 +141,92 @@ export const alertsAPI = {
     return response.data;
   },
 
-  create: async (alert: { eventId: string }): Promise<Alert> => {
-    const response = await nestAPI.post('/alerts', alert);
+  acknowledge: async (id: string): Promise<Alert> => {
+    const response = await nestAPI.post(`/alerts/${id}/acknowledge`);
     return response.data;
   },
 
-  acknowledge: async (id: string, data: { acknowledgedBy: string; notes?: string }): Promise<Alert> => {
-    const response = await nestAPI.post(`/alerts/${id}/acknowledge`, data);
-    return response.data;
-  },
-
-  resolve: async (id: string, data: { resolvedBy: string; notes: string; resolutionCategory: string }): Promise<Alert> => {
-    const response = await nestAPI.post(`/alerts/${id}/resolve`, data);
-    return response.data;
-  },
-
-  close: async (id: string, data: { closedBy: string; notes?: string }): Promise<Alert> => {
-    const response = await nestAPI.post(`/alerts/${id}/close`, data);
-    return response.data;
-  },
-
-  updateBusinessImpact: async (id: string, data: {
-    businessImpactScore: number;
-    affectedUsers?: number;
-    revenueAtRisk?: number;
-  }): Promise<Alert> => {
-    const response = await nestAPI.patch(`/alerts/${id}/business-impact`, data);
+  resolve: async (id: string, resolution?: string): Promise<Alert> => {
+    const response = await nestAPI.post(`/alerts/${id}/resolve`, { resolution });
     return response.data;
   },
 };
 
 // ============================================================================
-// ML API - Enhanced Features
+// ML API
 // ============================================================================
 
 export const mlAPI = {
-  // Asset Health Analysis
-  analyzeAssetHealth: async (assetId: string): Promise<HealthScore & {
-    asset_id: string;
-    metrics_analyzed: number;
-    anomalies_detected: number;
-    anomaly_details: Record<string, any>;
-    recent_events_count: number;
-    timestamp: string;
-  }> => {
-    const response = await mlAPIClient.post('/ml/enhanced/analyze-asset-health', { asset_id: assetId });
+  analyzeAssetHealth: async (assetId: string): Promise<HealthScore> => {
+    const response = await mlAPIClient.get(`/ml/asset-health/${assetId}`);
     return response.data;
   },
 
-  // Database Status
-  getDatabaseStatus: async (): Promise<{
-    database_connected: boolean;
-    metrics_in_database: number;
-    status: string;
-  }> => {
-    const response = await mlAPIClient.get('/ml/enhanced/database-status');
-    return response.data;
-  },
-
-  // Anomaly Detection
-  detectAnomaly: async (data: {
-    value: number;
-    historical_data?: number[];
+  detectAnomalies: async (params: {
+    assetId?: string;
+    metricName?: string;
+    window?: number;
   }): Promise<AnomalyDetectionResult> => {
-    const response = await mlAPIClient.post('/ml/detect-anomaly', data);
+    const response = await mlAPIClient.post('/ml/detect-anomalies', params);
     return response.data;
   },
 
-  // Root Cause Analysis
-  analyzeRootCause: async (data: {
-    event: Event;
-    related_events: Event[];
-    asset_metrics: Record<string, number[]>;
+  findRootCause: async (params: {
+    eventId: string;
+    timeWindow?: number;
   }): Promise<RootCauseResult> => {
-    const response = await mlAPIClient.post('/ml/analyze-root-cause', data);
+    const response = await mlAPIClient.post('/ml/root-cause', params);
     return response.data;
   },
 
-  // Alert Correlation
-  findCorrelations: async (data: {
-    alerts: Alert[];
-    time_window_minutes: number;
+  findCorrelations: async (params: {
+    assetIds?: string[];
+    timeRange?: string;
   }): Promise<CorrelationResult> => {
-    const response = await mlAPIClient.post('/ml/correlation/find-correlations', data);
-    return response.data;
-  },
-
-  // Suppression Suggestions
-  suggestSuppression: async (data: {
-    alerts: Alert[];
-    time_window_minutes: number;
-  }): Promise<{
-    correlation_analysis: CorrelationResult;
-    suppression_suggestions: {
-      suppression_suggestions: Array<{
-        group_type: string;
-        keep_alert_id: string;
-        suppress_alert_ids: string[];
-        reason: string;
-        alerts_to_suppress: number;
-      }>;
-      total_alerts: number;
-      suppressible_alerts: number;
-      noise_reduction_percent: number;
-    };
-  }> => {
-    const response = await mlAPIClient.post('/ml/correlation/suggest-suppression', data);
-    return response.data;
-  },
-
-  // Multi-Metric Detection
-  analyzeMultiMetric: async (data: {
-    metric_values: Record<string, number>;
-  }): Promise<{
-    metric_values: Record<string, number>;
-    is_anomaly: boolean;
-    score: number;
-    confidence: number;
-    anomalous_metrics: Array<{
-      metric: string;
-      value: number;
-      z_score: number;
-      expected_range: string;
-    }>;
-    reason: string;
-  }> => {
-    const response = await mlAPIClient.post('/ml/multi-metric/detect', data);
-    return response.data;
-  },
-
-  // Composite Health Score
-  calculateCompositeHealth: async (data: {
-    metric_values: Record<string, number>;
-  }): Promise<{
-    metric_values: Record<string, number>;
-    health_score: number;
-    status: 'healthy' | 'warning' | 'degraded' | 'critical';
-    is_anomaly: boolean;
-    anomalous_metrics_count: number;
-    confidence: number;
-  }> => {
-    const response = await mlAPIClient.post('/ml/multi-metric/composite-health', data);
+    const response = await mlAPIClient.post('/ml/correlations', params);
     return response.data;
   },
 };
 
 // ============================================================================
-// Health Check
+// NMS API (Network Management System)
+// ============================================================================
+
+export const nmsAPI = {
+  // Get NMS status and device list
+  getStatus: async (): Promise<NMSStatus> => {
+    const response = await nmsAPIClient.get('/nms/status');
+    return response.data;
+  },
+
+  // Trigger device discovery
+  triggerDiscovery: async (): Promise<{ message: string; status: string }> => {
+    const response = await nmsAPIClient.post('/nms/discover');
+    return response.data;
+  },
+
+  // Get current metrics for all devices
+  getMetrics: async (): Promise<DeviceMetric[]> => {
+    const response = await nmsAPIClient.get('/nms/metrics');
+    return response.data;
+  },
+
+  // Get metrics for a specific device
+  getDeviceMetrics: async (assetId: string): Promise<DeviceMetric[]> => {
+    const response = await nmsAPIClient.get(`/nms/metrics/${assetId}`);
+    return response.data;
+  },
+};
+
+// ============================================================================
+// HEALTH API
 // ============================================================================
 
 export const healthAPI = {
   checkNestJS: async (): Promise<boolean> => {
     try {
-      await nestAPI.get('/');
-      return true;
+      const response = await nestAPI.get('/health', { timeout: 5000 });
+      return response.status === 200;
     } catch {
       return false;
     }
@@ -291,20 +234,29 @@ export const healthAPI = {
 
   checkML: async (): Promise<boolean> => {
     try {
-      await mlAPIClient.get('/health');
-      return true;
+      const response = await mlAPIClient.get('/health', { timeout: 5000 });
+      return response.status === 200;
+    } catch {
+      return false;
+    }
+  },
+
+  checkNMS: async (): Promise<boolean> => {
+    try {
+      const response = await nmsAPIClient.get('/health', { timeout: 5000 });
+      return response.status === 200;
     } catch {
       return false;
     }
   },
 };
 
-// Export all
 export default {
-  assets: assetsAPI,
-  metrics: metricsAPI,
-  events: eventsAPI,
-  alerts: alertsAPI,
-  ml: mlAPI,
-  health: healthAPI,
+  assetsAPI,
+  metricsAPI,
+  eventsAPI,
+  alertsAPI,
+  mlAPI,
+  nmsAPI,
+  healthAPI,
 };

@@ -127,3 +127,50 @@ export interface DashboardStats {
   criticalAlerts: number;
   averageHealthScore: number;
 }
+// ============================================================================
+// NMS TYPES - Add these to your existing types/index.ts
+// ============================================================================
+
+// Network Device (extends Asset with network-specific fields)
+export interface NetworkDevice {
+  id: string;
+  name: string;
+  type: 'router' | 'switch' | 'firewall' | 'load_balancer' | 'access_point' | string;
+  ipAddress: string;
+  status: 'reachable' | 'unreachable' | 'degraded' | string;
+  vendor?: string;
+  model?: string;
+  location?: string;
+  uptime?: number; // percentage
+  lastSeen?: string;
+  metadata?: {
+    snmpCommunity?: string;
+    snmpVersion?: string;
+    snmpPort?: number;
+    deviceType?: string;
+    manufacturer?: string;
+    [key: string]: any;
+  };
+}
+
+// NMS Status Response
+export interface NMSStatus {
+  isPolling: boolean;
+  totalDevices: number;
+  reachableDevices: number;
+  unreachableDevices: number;
+  emsCoreUrl: string;
+  devices: NetworkDevice[];
+}
+
+// Device Metric
+export interface DeviceMetric {
+  assetId: string;
+  metricName: string; // cpu_usage, memory_usage, bandwidth_usage, packet_loss, etc.
+  value: number;
+  unit?: string;
+  timestamp: string;
+  tags?: {
+    [key: string]: string;
+  };
+}
