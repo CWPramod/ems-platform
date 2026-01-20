@@ -1,0 +1,50 @@
+# Docker Compose for NMS Module with EMS Core
+# This assumes EMS Core is already running
+
+version: '3.8'
+
+services:
+  nms:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ems-nms
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - NMS_PORT=3001
+      - EMS_CORE_URL=http://ems-core:3100
+      - DEFAULT_SNMP_COMMUNITY=public
+      - DEFAULT_SNMP_VERSION=2c
+      - DEFAULT_SNMP_PORT=161
+      - LOG_LEVEL=info
+    networks:
+      - ems-network
+    depends_on:
+      - ems-core
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
+  # EMS Core service (reference - should already exist)
+  ems-core:
+    # This is a placeholder showing expected EMS Core service
+    # In reality, this would be defined in your main docker-compose.yml
+    image: ems-core:latest
+    container_name: ems-core
+    ports:
+      - "3100:3100"
+    networks:
+      - ems-network
+    # ... other EMS Core configuration
+
+networks:
+  ems-network:
+    driver: bridge
+    # Use existing network if EMS Core already running:
+    # external: true
