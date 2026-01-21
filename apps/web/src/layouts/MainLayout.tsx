@@ -1,116 +1,84 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { healthAPI } from '../services/api';
+import { Outlet, NavLink } from 'react-router-dom';
+import { APP_MODE, FEATURES } from '../config/appMode';
 
-const MainLayout = () => {
-  const location = useLocation();
-  const [backendStatus, setBackendStatus] = useState({ 
-    nestjs: false, 
-    ml: false,
-    nms: false 
-  });
+const linkStyle = ({ isActive }: { isActive: boolean }) => ({
+  color: '#fff',
+  textDecoration: 'none',
+  padding: '8px 12px',
+  borderRadius: '6px',
+  background: isActive ? '#2563eb' : 'transparent',
+});
 
-  useEffect(() => {
-    checkBackends();
-    const interval = setInterval(checkBackends, 30000); // Check every 30s
-    return () => clearInterval(interval);
-  }, []);
-
-  const checkBackends = async () => {
-    const [nestjs, ml, nms] = await Promise.all([
-      healthAPI.checkNestJS(),
-      healthAPI.checkML(),
-      healthAPI.checkNMS(),
-    ]);
-    setBackendStatus({ nestjs, ml, nms });
-  };
-
-  const navItems = [
-    { path: '/', label: 'Dashboard', icon: '📊' },
-    { path: '/assets', label: 'Assets', icon: '🖥️' },
-    { path: '/alerts', label: 'Alerts', icon: '🚨' },
-    { path: '/metrics', label: 'Metrics', icon: '📈' },
-    { path: '/correlations', label: 'Correlations', icon: '🔗' },
-    { path: '/cloud', label: 'Cloud', icon: '☁️' },
-    { path: '/apm', label: 'APM', icon: '⚡' },
-    { path: '/network', label: 'Network', icon: '🌐' },
-  ];
-
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
-
+export default function MainLayout() {
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      
       {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white flex flex-col">
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-800">
-          <h1 className="text-2xl font-bold">EMS Platform</h1>
-          <p className="text-sm text-gray-400 mt-1">AI-Powered Monitoring</p>
-        </div>
+      <aside
+        style={{
+          width: '220px',
+          background: '#0f172a',
+          color: '#fff',
+          padding: '16px',
+        }}
+      >
+        <h2 style={{ marginBottom: '24px' }}>
+          {APP_MODE === 'nms' ? 'NMS Dashboard' : 'EMS Platform'}
+        </h2>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg mb-2 transition-colors ${
-                isActive(item.path)
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-800'
-              }`}
-            >
-              <span className="text-xl">{item.icon}</span>
-              <span className="font-medium">{item.label}</span>
-            </Link>
-          ))}
+        <nav style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          
+          {/* EMS Overview */}
+          {FEATURES[APP_MODE].showEMSOverview && (
+            <NavLink to="/" style={linkStyle}>
+              Dashboard
+            </NavLink>
+          )}
+
+          {/* NMS Menus (always visible) */}
+          <NavLink to="/network" style={linkStyle}>
+            Network
+          </NavLink>
+
+          <NavLink to="/alerts" style={linkStyle}>
+            Alerts
+          </NavLink>
+
+          <NavLink to="/metrics" style={linkStyle}>
+            Metrics
+          </NavLink>
+
+          {/* EMS-only Menus */}
+          {FEATURES[APP_MODE].showITSM && (
+            <NavLink to="/assets" style={linkStyle}>
+              Assets
+            </NavLink>
+          )}
+
+          {FEATURES[APP_MODE].showAPM && (
+            <NavLink to="/apm" style={linkStyle}>
+              APM
+            </NavLink>
+          )}
+
+          {FEATURES[APP_MODE].showCloud && (
+            <NavLink to="/cloud" style={linkStyle}>
+              Cloud
+            </NavLink>
+          )}
+
+          {FEATURES[APP_MODE].showEMSOverview && (
+            <NavLink to="/correlations" style={linkStyle}>
+              Correlations
+            </NavLink>
+          )}
         </nav>
-
-        {/* Backend Status */}
-        <div className="p-4 border-t border-gray-800">
-          <p className="text-xs text-gray-400 mb-2">Backend Status</p>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${backendStatus.nestjs ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-sm">NestJS API</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${backendStatus.ml ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-sm">ML Service</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${backendStatus.nms ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span className="text-sm">NMS Service</span>
-            </div>
-          </div>
-        </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-gray-800">
-              {navItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
-            </h2>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {new Date().toLocaleString()}
-              </span>
-            </div>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="flex-1 overflow-auto p-8">
-          <Outlet />
-        </div>
+      {/* Main content */}
+      <main style={{ flex: 1, padding: '24px', background: '#f8fafc' }}>
+        <Outlet />
       </main>
     </div>
   );
-};
-
-export default MainLayout;
+}
