@@ -5,12 +5,17 @@ import type {
   Metric,
   Event,
   PaginatedResponse,
-  AnomalyDetectionResult,
-  RootCauseResult,
-  CorrelationResult,
-  HealthScore,
   NMSStatus,
   DeviceMetric,
+  MLHealthResponse,
+  AnomalyDetectionRequest,
+  AnomalyDetectionResponse,
+  TrainModelRequest,
+  TrainModelResponse,
+  ModelsListResponse,
+  AssetMetricsResponse,
+  AnomalyScoresResponse,
+
 } from '../types';
 
 // API Base URLs
@@ -157,34 +162,57 @@ export const alertsAPI = {
 // ============================================================================
 
 export const mlAPI = {
-  analyzeAssetHealth: async (assetId: string): Promise<HealthScore> => {
-    const response = await mlAPIClient.get(`/ml/asset-health/${assetId}`);
+  // Health Check
+  health: async (): Promise<MLHealthResponse> => {
+    const response = await mlAPIClient.get('/api/v1/health');
     return response.data;
   },
 
-  detectAnomalies: async (params: {
-    assetId?: string;
-    metricName?: string;
-    window?: number;
-  }): Promise<AnomalyDetectionResult> => {
-    const response = await mlAPIClient.post('/ml/detect-anomalies', params);
+  // Anomaly Detection
+  detectAnomalies: async (params: AnomalyDetectionRequest): Promise<AnomalyDetectionResponse> => {
+    const response = await mlAPIClient.post('/api/v1/anomaly/detect', params);
     return response.data;
   },
 
-  findRootCause: async (params: {
-    eventId: string;
-    timeWindow?: number;
-  }): Promise<RootCauseResult> => {
-    const response = await mlAPIClient.post('/ml/root-cause', params);
+  // Train Model
+  trainModel: async (params: TrainModelRequest): Promise<TrainModelResponse> => {
+    const response = await mlAPIClient.post('/api/v1/anomaly/train', params);
     return response.data;
   },
 
-  findCorrelations: async (params: {
-    assetIds?: string[];
-    timeRange?: string;
-  }): Promise<CorrelationResult> => {
-    const response = await mlAPIClient.post('/ml/correlations', params);
+  // List Models
+  listModels: async (): Promise<ModelsListResponse> => {
+    const response = await mlAPIClient.get('/api/v1/models');
     return response.data;
+  },
+
+  // Get Asset Metrics
+  getAssetMetrics: async (assetId: number, hours: number = 24): Promise<AssetMetricsResponse> => {
+    const response = await mlAPIClient.get(`/api/v1/metrics/${assetId}?hours=${hours}`);
+    return response.data;
+  },
+
+  // Get Anomaly Scores History
+  getAnomalyScores: async (assetId: number, hours: number = 24): Promise<AnomalyScoresResponse> => {
+    const response = await mlAPIClient.get(`/api/v1/anomaly/scores/${assetId}?hours=${hours}`);
+    return response.data;
+  },
+
+  // Quick anomaly check for specific asset (convenience method)
+  checkAssetAnomalies: async (assetId: number, threshold: number = 0.7): Promise<AnomalyDetectionResponse> => {
+    return mlAPI.detectAnomalies({
+      assetId,
+      timeRange: 3600, // Last hour
+      threshold,
+    });
+  },
+
+  // Train model with default settings (convenience method)
+  trainDefault: async (): Promise<TrainModelResponse> => {
+    return mlAPI.trainModel({
+      modelType: 'anomaly_detection',
+      timeRange: 86400, // Last 24 hours
+    });
   },
 };
 
@@ -233,13 +261,13 @@ export const healthAPI = {
   },
 
   checkML: async (): Promise<boolean> => {
-    try {
-      const response = await mlAPIClient.get('/health', { timeout: 5000 });
-      return response.status === 200;
-    } catch {
-      return false;
-    }
-  },
+  try {
+    const response = await mlAPIClient.get('/api/v1/health', { timeout: 5000 });
+    return response.status === 200 && response.data.status === 'healthy';
+  } catch {
+    return false;
+  }
+},
 
   checkNMS: async (): Promise<boolean> => {
     try {

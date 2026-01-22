@@ -174,3 +174,134 @@ export interface DeviceMetric {
     [key: string]: string;
   };
 }
+// ============================================================================
+// ML SERVICE TYPES
+// ============================================================================
+
+// ML Health Response
+export interface MLHealthResponse {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  database: boolean;
+  redis: boolean | null;
+  models: {
+    anomaly_detection: boolean;
+  };
+}
+
+// Anomaly Detection Types
+export interface AnomalyResult {
+  assetId: number;
+  assetName: string;
+  metricName: string;
+  value: number;
+  score: number;
+  isAnomaly: boolean;
+  threshold: number;
+  timestamp: string;
+  metadata?: {
+    deviation?: number;
+    model?: string;
+    method?: string;
+  };
+}
+
+export interface AnomalyDetectionResponse {
+  success: boolean;
+  totalAnalyzed: number;
+  anomaliesDetected: number;
+  results: AnomalyResult[];
+  metadata?: {
+    threshold: number;
+    time_range_seconds: number;
+    model_type: 'ml' | 'statistical';
+  };
+}
+
+export interface AnomalyDetectionRequest {
+  assetId?: number;
+  metricNames?: string[];
+  timeRange?: number;
+  threshold?: number;
+}
+
+// Model Training Types
+export interface TrainModelRequest {
+  modelType: string;
+  assetIds?: number[];
+  timeRange?: number;
+  parameters?: Record<string, any>;
+}
+
+export interface TrainModelResponse {
+  success: boolean;
+  message: string;
+  modelType: string;
+  modelVersion: string;
+  trainingMetrics?: {
+    samples_trained: number;
+    contamination: number;
+    mean_score: number;
+    std_score: number;
+    anomalies_detected: number;
+    normal_detected: number;
+  };
+  trainingSamples: number;
+  trainingDuration: number;
+}
+
+// Model Info Types
+export interface ModelInfo {
+  modelType: string;
+  modelVersion: string;
+  trainingDate: string;
+  status: string;
+  metrics?: Record<string, any>;
+  parameters?: Record<string, any>;
+}
+
+export interface ModelsListResponse {
+  success: boolean;
+  models: ModelInfo[];
+  totalModels: number;
+}
+
+// Asset Metrics Types
+export interface MetricDataPoint {
+  timestamp: string;
+  value: number;
+}
+
+export interface AssetMetricsResponse {
+  assetId: number;
+  assetName: string;
+  metricName: string;
+  unit: string;
+  data: MetricDataPoint[];
+  statistics?: {
+    mean: number;
+    median: number;
+    std: number;
+    min: number;
+    max: number;
+    q25: number;
+    q75: number;
+    count: number;
+  };
+}
+
+// Anomaly Scores History
+export interface AnomalyScore {
+  metricName: string;
+  score: number;
+  isAnomaly: boolean;
+  threshold: number;
+  timestamp: string;
+}
+
+export interface AnomalyScoresResponse {
+  success: boolean;
+  assetId: number;
+  scores: AnomalyScore[];
+  total: number;
+}

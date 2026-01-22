@@ -9,7 +9,7 @@ import Correlations from './pages/Correlations';
 import Cloud from './pages/Cloud';
 import APM from './pages/APM';
 import Network from './pages/Network';
-
+import MLDashboard from './pages/MLDashboard';
 import { APP_MODE, FEATURES } from './config/appMode';
 
 export default function App() {
@@ -31,6 +31,11 @@ export default function App() {
         {FEATURES[APP_MODE].showCloud && <Route path="/cloud" element={<Cloud />} />}
         {FEATURES[APP_MODE].showEMSOverview && (
           <Route path="/correlations" element={<Correlations />} />
+        )}
+
+        {/* ML Dashboard */}
+        {FEATURES[APP_MODE].showEMSOverview && (
+          <Route path="/ml" element={<MLDashboard />} />
         )}
       </Route>
     </Routes>
