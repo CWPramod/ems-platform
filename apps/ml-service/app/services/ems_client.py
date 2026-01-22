@@ -111,8 +111,25 @@ class EMSCoreClient:
             data = response.json()
             metrics = data if isinstance(data, list) else data.get("data", [])
             
-            logger.info(f"Retrieved {len(metrics)} metrics from EMS Core")
-            return metrics
+            
+            # Add assetId and metricName back to each metric record
+            # since the API only returns timestamp and value
+            enriched_metrics = []
+            for metric in metrics:
+                enriched_metric = {
+                    "timestamp": metric.get("timestamp"),
+                    "value": metric.get("value"),
+                }
+                # Add the query parameters back as fields
+                if asset_id:
+                    enriched_metric["assetId"] = asset_id
+                if metric_name:
+                    enriched_metric["metricName"] = metric_name
+                enriched_metrics.append(enriched_metric)
+
+            logger.info(f"Retrieved {len(enriched_metrics)} metrics from EMS Core")
+            return enriched_metrics
+
         
         except Exception as e:
             logger.error(f"Failed to get metrics: {e}")
@@ -283,4 +300,5 @@ class EMSCoreClient:
 
 # Global client instance
 ems_client = EMSCoreClient()
+
 

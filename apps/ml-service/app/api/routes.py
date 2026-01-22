@@ -169,15 +169,15 @@ async def train_anomaly_model(
             if metrics:
                 df = data_processor.metrics_to_dataframe(metrics)
                 
-                for metric_name in df['metricName'].unique():
-                    metric_df = df[df['metricName'] == metric_name]
-                    values = metric_df['value'].values
-                    
-                    if len(values) >= 10:
-                        # Prepare features
-                        features = anomaly_detector._prepare_features(values)
-                        if features is not None:
-                            training_data.extend(features)
+                # Train on all values together (no metricName grouping needed)
+                values = df['value'].values
+
+                if len(values) >= 10:
+                    # Prepare features
+                    features = anomaly_detector._prepare_features(values)
+                    if features is not None:
+                        training_data.extend(features)
+
         
         if len(training_data) < settings.MIN_TRAINING_SAMPLES:
             raise HTTPException(
