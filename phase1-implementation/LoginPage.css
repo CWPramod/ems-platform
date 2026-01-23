@@ -1,0 +1,167 @@
+/* Login Page Styles */
+/* apps/web/src/pages/Auth/LoginPage.css */
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.login-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+  z-index: 0;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 450px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.login-card-content {
+  padding: 48px 40px !important;
+}
+
+.login-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.login-logo {
+  max-width: 280px;
+  height: auto;
+}
+
+.login-welcome-text {
+  text-align: center;
+  font-weight: 500;
+  margin-bottom: 8px !important;
+  color: #333;
+}
+
+.login-product-name {
+  text-align: center;
+  margin-bottom: 32px !important;
+  font-size: 0.875rem;
+}
+
+.login-error-alert {
+  margin-bottom: 24px !important;
+  border-radius: 8px;
+}
+
+.login-form {
+  width: 100%;
+}
+
+.login-forgot-password {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.login-button {
+  border-radius: 8px !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.login-button:hover {
+  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4) !important;
+  transform: translateY(-2px);
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  transform: none !important;
+}
+
+.login-copyright {
+  text-align: center;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.login-bottom-info {
+  position: relative;
+  z-index: 1;
+  margin-top: 24px;
+  text-align: center;
+}
+
+.login-bottom-info a {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.login-bottom-info a:hover {
+  color: #e3f2fd;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+  .login-card-content {
+    padding: 32px 24px !important;
+  }
+
+  .login-logo {
+    max-width: 220px;
+  }
+
+  .login-welcome-text {
+    font-size: 1.25rem !important;
+  }
+}
+
+/* Input Field Enhancements */
+.MuiTextField-root {
+  margin-bottom: 4px;
+}
+
+.MuiOutlinedInput-root {
+  border-radius: 8px;
+}
+
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #1976D2;
+  border-width: 2px;
+}
+
+/* Animation for card entrance */
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-card {
+  animation: cardFadeIn 0.5s ease-out;
+}
+
+/* Loading spinner container */
+.login-button .MuiCircularProgress-root {
+  margin-right: 8px;
+}
