@@ -13,6 +13,7 @@ import { ApmModule } from './apm/apm.module';
 import { AuthModule } from './auth/auth.module';
 import { RbacModule } from './rbac/rbac.module';
 import { MastersModule } from './masters/masters.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MastersModule } from './masters/masters.module';
     RbacModule,
     // Masters Module (Customers, Devices, etc.)
     MastersModule,
+    MonitoringModule,
     // Existing Modules
     AssetsModule,
     MetricsModule,
