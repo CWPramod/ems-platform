@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AssetsModule } from './assets/assets.module';
@@ -10,6 +11,8 @@ import { AlertsModule } from './alerts/alerts.module';
 import { CloudModule } from './cloud/cloud.module';
 import { ApmModule } from './apm/apm.module';
 import { AuthModule } from './auth/auth.module';
+import { RbacModule } from './rbac/rbac.module';
+import { MastersModule } from './masters/masters.module';
 
 @Module({
   imports: [
@@ -30,7 +33,14 @@ import { AuthModule } from './auth/auth.module';
       synchronize: false,
       logging: true,
     }),
+    // Schedule module for cron jobs (session cleanup, etc.)
+    ScheduleModule.forRoot(),
+    // Authentication & Authorization
     AuthModule,
+    RbacModule,
+    // Masters Module (Customers, Devices, etc.)
+    MastersModule,
+    // Existing Modules
     AssetsModule,
     MetricsModule,
     EventsModule,
