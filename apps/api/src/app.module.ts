@@ -4,25 +4,23 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AuthModule } from './auth/auth.module';
+import { RbacModule } from './rbac/rbac.module';
+import { MastersModule } from './masters/masters.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
+import { ReportingModule } from './reporting/reporting.module';
 import { AssetsModule } from './assets/assets.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { EventsModule } from './events/events.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { CloudModule } from './cloud/cloud.module';
 import { ApmModule } from './apm/apm.module';
-import { AuthModule } from './auth/auth.module';
-import { RbacModule } from './rbac/rbac.module';
-import { MastersModule } from './masters/masters.module';
-import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
-    // Load environment variables
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
     }),
-    // Configure TypeORM with PostgreSQL
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DATABASE_HOST || 'localhost',
@@ -41,7 +39,10 @@ import { MonitoringModule } from './monitoring/monitoring.module';
     RbacModule,
     // Masters Module (Customers, Devices, etc.)
     MastersModule,
+    // Monitoring Module (Dashboard, Drilldown, Topology, Top Talkers)
     MonitoringModule,
+    // Reporting Module (Reports, Custom Dashboards)
+    ReportingModule,
     // Existing Modules
     AssetsModule,
     MetricsModule,
