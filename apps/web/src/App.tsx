@@ -1,5 +1,4 @@
-// App.tsx with Authentication
-// Updated routing with login and protected routes
+// App.tsx with Network Topology Route
 // apps/web/src/App.tsx
 
 import { Routes, Route, Navigate } from 'react-router-dom';
@@ -9,6 +8,7 @@ import MainLayout from './layouts/MainLayout';
 import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
+import NetworkTopology from './pages/NetworkTopology';
 import Assets from './pages/Assets';
 import Alerts from './pages/Alerts';
 import Metrics from './pages/Metrics';
@@ -42,6 +42,7 @@ export default function App() {
 
           {/* NMS routes (always enabled) */}
           <Route path="/network" element={<Network />} />
+          <Route path="/topology" element={<NetworkTopology />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/metrics" element={<Metrics />} />
 

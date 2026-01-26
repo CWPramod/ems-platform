@@ -32,6 +32,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   ExclamationCircleOutlined,
+  ApartmentOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { APP_MODE, FEATURES } from '../config/appMode';
@@ -103,6 +104,11 @@ export default function MainLayout() {
       key: '/network',
       icon: <CloudServerOutlined />,
       label: 'Network',
+    },
+    {
+      key: '/topology',
+      icon: <ApartmentOutlined />,
+      label: 'Topology',
     },
     {
       key: '/alerts',
