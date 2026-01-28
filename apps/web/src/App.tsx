@@ -9,6 +9,9 @@ import Login from './pages/Login';
 
 import Dashboard from './pages/Dashboard';
 import NetworkTopology from './pages/NetworkTopology';
+import TopTalkers from './pages/TopTalkers';
+import DeviceDetails from './pages/DeviceDetails';
+import Reports from './pages/Reports';
 import Assets from './pages/Assets';
 import Alerts from './pages/Alerts';
 import Metrics from './pages/Metrics';
@@ -43,6 +46,9 @@ export default function App() {
           {/* NMS routes (always enabled) */}
           <Route path="/network" element={<Network />} />
           <Route path="/topology" element={<NetworkTopology />} />
+          <Route path="/top-talkers" element={<TopTalkers />} />
+          <Route path="/device/:deviceId" element={<DeviceDetails />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/metrics" element={<Metrics />} />
 

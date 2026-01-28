@@ -75,7 +75,14 @@ export default function Dashboard() {
       title: 'Device Name',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string) => <Text strong>{text}</Text>,
+      render: (text: string, record: any) => (
+        <a
+          onClick={() => window.location.href = `/device/${record.id}`}
+          style={{ color: '#1890ff', cursor: 'pointer', fontWeight: 'bold' }}
+        >
+          {text}
+        </a>
+      ),
     },
     {
       title: 'Type',

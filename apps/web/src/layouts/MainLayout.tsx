@@ -33,6 +33,8 @@ import {
   MenuUnfoldOutlined,
   ExclamationCircleOutlined,
   ApartmentOutlined,
+  BarChartOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { APP_MODE, FEATURES } from '../config/appMode';
@@ -109,6 +111,16 @@ export default function MainLayout() {
       key: '/topology',
       icon: <ApartmentOutlined />,
       label: 'Topology',
+    },
+    {
+      key: '/top-talkers',
+      icon: <BarChartOutlined />,
+      label: 'Top Talkers',
+    },
+    {
+      key: '/reports',
+      icon: <FileTextOutlined />,
+      label: 'Reports',
     },
     {
       key: '/alerts',
