@@ -19,22 +19,22 @@ class ApiService {
 
     // Add request interceptor to attach token
     this.api.interceptors.request.use(
-      (config) => {
+      (config: any) => {
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }
         return config;
       },
-      (error) => {
+      (error: any) => {
         return Promise.reject(error);
       }
     );
 
     // Add response interceptor for error handling
     this.api.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      (response: any) => response,
+      (error: any) => {
         if (error.response?.status === 401) {
           // Token expired or invalid
           localStorage.removeItem('token');

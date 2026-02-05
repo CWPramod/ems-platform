@@ -228,6 +228,18 @@ export const mlAPI = {
     return response.data;
   },
 
+  // Analyze asset health
+  analyzeAssetHealth: async (assetId: string | number): Promise<{ health_score: number; status: string }> => {
+    const response = await mlAPIClient.get(`/api/v1/health/asset/${assetId}`);
+    return response.data;
+  },
+
+  // Find correlations between alerts
+  findCorrelations: async (params: { alerts: any[]; time_window_minutes: number }): Promise<any> => {
+    const response = await mlAPIClient.post('/api/v1/correlations/find', params);
+    return response.data;
+  },
+
   // Quick anomaly check for specific asset (convenience method)
   checkAssetAnomalies: async (assetId: number, threshold: number = 0.7): Promise<AnomalyDetectionResponse> => {
     return mlAPI.detectAnomalies({
@@ -394,6 +406,7 @@ export const securityAPI = {
   getSignatureAlerts: async (params?: {
     category?: string;
     severity?: string;
+    status?: string;
     sourceIp?: string;
     destinationIp?: string;
     limit?: number;

@@ -30,7 +30,7 @@ import { assetsAPI, metricsAPI } from '../services/api';
 import type { Asset, Metric } from '../types';
 
 const { Title, Text } = Typography;
-const { Option } = Select;
+// const { Option } = Select;
 
 // ---------------------------------------------------------------------------
 // Metric configuration
@@ -439,7 +439,7 @@ export default function Metrics() {
               />
               <Tooltip
                 contentStyle={DARK_TOOLTIP_STYLE}
-                formatter={(value: number) => [`${value}${cfg.unit}`, cfg.label]}
+                formatter={(value: number | undefined) => [`${value ?? 0}${cfg.unit}`, cfg.label]}
                 labelFormatter={(label) => {
                   const item = chartData.find((d) => d.timestamp === label);
                   return item ? item.fullTime : label;
@@ -547,9 +547,9 @@ export default function Metrics() {
               )}
               <Tooltip
                 contentStyle={DARK_TOOLTIP_STYLE}
-                formatter={(value: number, name: string) => {
+                formatter={(value: number | undefined, name: string | undefined) => {
                   const mc = METRIC_CONFIGS.find((c) => c.label === name);
-                  return [`${value}${mc?.unit || ''}`, name];
+                  return [`${value ?? 0}${mc?.unit || ''}`, name || ''];
                 }}
                 labelFormatter={(label) => {
                   const item = comparisonChartData.find((d) => d.timestamp === label);

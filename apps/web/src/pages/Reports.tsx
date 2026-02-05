@@ -21,16 +21,15 @@ import {
   Progress,
   Modal,
   Descriptions,
-  Spin,
   Alert,
   Empty,
 } from 'antd';
 import {
   FileTextOutlined,
-  DownloadOutlined,
+  // DownloadOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined,
+  // CloseCircleOutlined,
   ClockCircleOutlined,
   EyeOutlined,
   FilePdfOutlined,

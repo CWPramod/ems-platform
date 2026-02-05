@@ -19,7 +19,6 @@ import {
   Input,
   Popconfirm,
   Switch,
-  Spin,
   message,
 } from 'antd';
 import {
@@ -41,6 +40,9 @@ import type { ColumnsType } from 'antd/es/table';
 import { RadarChartOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import NetworkScanDrawer from '../components/NetworkScanDrawer';
+import DeviceFormModal from '../components/DeviceFormModal';
+import BulkUploadDrawer from '../components/BulkUploadDrawer';
+import CustomerFormModal from '../components/CustomerFormModal';
 
 const { Title, Text } = Typography;
 
@@ -598,45 +600,27 @@ function DevicesTab() {
         })}
       />
 
-      {/* Lazy-loaded modals — import only when opened */}
-      {deviceModalOpen && (() => {
-        try {
-          // DeviceFormModal is an optional component
-          const DeviceFormModal = require('../components/DeviceFormModal').default;
-          return (
-            <DeviceFormModal
-              open={deviceModalOpen}
-              onClose={() => {
-                setDeviceModalOpen(false);
-                loadDevices();
-              }}
-            />
-          );
-        } catch {
-          message.info('DeviceFormModal component not yet implemented');
-          setDeviceModalOpen(false);
-          return null;
-        }
-      })()}
+      {deviceModalOpen && (
+        <DeviceFormModal
+          visible={deviceModalOpen}
+          onClose={() => setDeviceModalOpen(false)}
+          onSuccess={() => {
+            setDeviceModalOpen(false);
+            loadDevices();
+          }}
+        />
+      )}
 
-      {bulkDrawerOpen && (() => {
-        try {
-          const BulkUploadDrawer = require('../components/BulkUploadDrawer').default;
-          return (
-            <BulkUploadDrawer
-              open={bulkDrawerOpen}
-              onClose={() => {
-                setBulkDrawerOpen(false);
-                loadDevices();
-              }}
-            />
-          );
-        } catch {
-          message.info('BulkUploadDrawer component not yet implemented');
-          setBulkDrawerOpen(false);
-          return null;
-        }
-      })()}
+      {bulkDrawerOpen && (
+        <BulkUploadDrawer
+          visible={bulkDrawerOpen}
+          onClose={() => setBulkDrawerOpen(false)}
+          onSuccess={() => {
+            setBulkDrawerOpen(false);
+            loadDevices();
+          }}
+        />
+      )}
 
       {/* Network Scan Drawer */}
       <NetworkScanDrawer
@@ -902,25 +886,16 @@ function CustomersTab() {
         scroll={{ x: 1100 }}
       />
 
-      {/* Lazy-loaded modal */}
-      {customerModalOpen && (() => {
-        try {
-          const CustomerFormModal = require('../components/CustomerFormModal').default;
-          return (
-            <CustomerFormModal
-              open={customerModalOpen}
-              onClose={() => {
-                setCustomerModalOpen(false);
-                loadCustomers();
-              }}
-            />
-          );
-        } catch {
-          message.info('CustomerFormModal component not yet implemented');
-          setCustomerModalOpen(false);
-          return null;
-        }
-      })()}
+      {customerModalOpen && (
+        <CustomerFormModal
+          visible={customerModalOpen}
+          onClose={() => setCustomerModalOpen(false)}
+          onSuccess={() => {
+            setCustomerModalOpen(false);
+            loadCustomers();
+          }}
+        />
+      )}
     </div>
   );
 }

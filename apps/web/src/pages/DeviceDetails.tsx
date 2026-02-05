@@ -16,8 +16,6 @@ import {
   Typography,
   Descriptions,
   Progress,
-  Tabs,
-  Timeline,
   message,
 } from 'antd';
 import {
@@ -29,7 +27,6 @@ import {
   ThunderboltOutlined,
   DashboardOutlined,
   WifiOutlined,
-  HistoryOutlined,
   LineChartOutlined,
   ApiOutlined,
   ClockCircleOutlined,
@@ -61,13 +58,12 @@ export default function DeviceDetails() {
   const [loading, setLoading] = useState(false);
   const [device, setDevice] = useState<any>(null);
   const [health, setHealth] = useState<any>(null);
-  const [performanceSummary, setPerformanceSummary] = useState<any>(null);
+  const [, setPerformanceSummary] = useState<any>(null);
   const [cpuHistory, setCpuHistory] = useState<any[]>([]);
   const [memoryHistory, setMemoryHistory] = useState<any[]>([]);
   const [bandwidthHistory, setBandwidthHistory] = useState<any[]>([]);
   const [timeRange, setTimeRange] = useState('24h');
   const [interfaces, setInterfaces] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
 
   useEffect(() => {
     if (deviceId) {

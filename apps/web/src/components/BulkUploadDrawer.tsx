@@ -18,10 +18,11 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import type { UploadFile, ColumnsType } from 'antd/es/upload/interface';
+import type { UploadFile } from 'antd/es/upload/interface';
+import type { ColumnsType } from 'antd/es/table';
 import { apiService } from '../services/apiService';
 
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const { Dragger } = Upload;
 
 interface BulkUploadDrawerProps {
@@ -355,7 +356,7 @@ const BulkUploadDrawer: React.FC<BulkUploadDrawerProps> = ({
       {/* Preview Table */}
       {previewData.length > 0 && (
         <>
-          <Divider orientation="left" plain>
+          <Divider orientation={"left" as any} plain>
             Preview ({previewData.length} row{previewData.length !== 1 ? 's' : ''})
           </Divider>
           <Table

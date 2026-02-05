@@ -3,7 +3,10 @@ export interface Asset {
   id: string;
   name: string;
   type: 'router' | 'switch' | 'server' | 'firewall' | 'load_balancer' | 'application';
+  ip?: string;
   ipAddress?: string;
+  vendor?: string;
+  model?: string;
   location?: string;
   tier: 'tier1' | 'tier2' | 'tier3';
   status: 'online' | 'offline' | 'degraded' | 'maintenance';

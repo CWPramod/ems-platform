@@ -21,7 +21,6 @@ import {
   ReloadOutlined,
   ThunderboltOutlined,
   SwapOutlined,
-  FireOutlined,
   CloudUploadOutlined,
   CloudDownloadOutlined,
   DesktopOutlined,
@@ -72,12 +71,7 @@ const formatBytes = (bytes: number) => {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
 };
 
-// Format bandwidth (Mbps)
-const formatBandwidth = (mbps: number) => {
-  if (!mbps) return '0 Mbps';
-  if (mbps >= 1000) return (mbps / 1000).toFixed(2) + ' Gbps';
-  return mbps.toFixed(2) + ' Mbps';
-};
+// formatBandwidth removed — use formatBytes for bandwidth display
 
 // -------------------------------------------------------------------
 // Tab: By Device
@@ -241,7 +235,7 @@ function ByDeviceTab({
                 />
                 <RechartsTooltip
                   contentStyle={CHART_TOOLTIP_STYLE}
-                  formatter={(value: number) => [formatBytes(value * 1024 * 1024), 'Traffic']}
+                  formatter={(value: number | undefined) => [formatBytes((value ?? 0) * 1024 * 1024), 'Traffic']}
                 />
                 <Legend wrapperStyle={{ color: '#8ba3c1' }} />
                 <Bar dataKey="bandwidth" fill="#1890ff" name="Traffic (MB)" radius={[4, 4, 0, 0]} />
@@ -259,7 +253,7 @@ function ByDeviceTab({
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percentage }) => `${name}: ${percentage?.toFixed(1) || 0}%`}
+                  label={({ name, percent }: any) => `${name}: ${((percent || 0) * 100).toFixed(1)}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
@@ -404,7 +398,7 @@ function TopSendersTab({ loading, data }: { loading: boolean; data: any[] }) {
             />
             <RechartsTooltip
               contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number) => [formatBytes(value), 'Bytes Sent']}
+              formatter={(value: number | undefined) => [formatBytes(value ?? 0), 'Bytes Sent']}
             />
             <Bar dataKey="bytes" fill="#f5222d" name="Bytes Sent" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -518,7 +512,7 @@ function TopReceiversTab({ loading, data }: { loading: boolean; data: any[] }) {
             />
             <RechartsTooltip
               contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number) => [formatBytes(value), 'Bytes Received']}
+              formatter={(value: number | undefined) => [formatBytes(value ?? 0), 'Bytes Received']}
             />
             <Bar dataKey="bytes" fill="#1890ff" name="Bytes Received" radius={[0, 4, 4, 0]} />
           </BarChart>
@@ -666,7 +660,7 @@ function ApplicationsTab({ loading, data }: { loading: boolean; data: any[] }) {
               outerRadius={150}
               paddingAngle={2}
               dataKey="value"
-              label={({ name, percentage }) => `${name}: ${(percentage || 0).toFixed(1)}%`}
+              label={({ name, percent }: any) => `${name}: ${((percent || 0) * 100).toFixed(1)}%`}
             >
               {donutData.map((entry, index) => (
                 <Cell key={`app-cell-${index}`} fill={entry.color} />
@@ -674,7 +668,7 @@ function ApplicationsTab({ loading, data }: { loading: boolean; data: any[] }) {
             </Pie>
             <RechartsTooltip
               contentStyle={CHART_TOOLTIP_STYLE}
-              formatter={(value: number) => [formatBytes(value), 'Traffic']}
+              formatter={(value: number | undefined) => [formatBytes(value ?? 0), 'Traffic']}
             />
             <Legend wrapperStyle={{ color: '#8ba3c1' }} />
           </PieChart>

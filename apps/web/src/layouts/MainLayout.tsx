@@ -98,7 +98,7 @@ export default function MainLayout() {
   ];
 
   // Sidebar menu items
-  const menuItems: MenuProps['items'] = [
+  const menuItems = ([
     // EMS Overview (Dashboard)
     FEATURES[APP_MODE].showEMSOverview && {
       key: '/',
@@ -183,7 +183,7 @@ export default function MainLayout() {
       icon: <RobotOutlined />,
       label: 'ML Dashboard',
     },
-  ].filter(Boolean);
+  ]).filter(Boolean) as MenuProps['items'];
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     navigate(e.key);

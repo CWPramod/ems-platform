@@ -151,7 +151,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         autoComplete="off"
       >
         {/* ---- Basic Info ---- */}
-        <Divider orientation="left" plain>
+        <Divider orientation={"left" as any} plain>
           Basic Information
         </Divider>
 
@@ -224,7 +224,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         </Row>
 
         {/* ---- Contact ---- */}
-        <Divider orientation="left" plain>
+        <Divider orientation={"left" as any} plain>
           Contact Details
         </Divider>
 
@@ -261,7 +261,7 @@ const CustomerFormModal: React.FC<CustomerFormModalProps> = ({
         </Row>
 
         {/* ---- Address ---- */}
-        <Divider orientation="left" plain>
+        <Divider orientation={"left" as any} plain>
           Address
         </Divider>
 

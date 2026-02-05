@@ -1,7 +1,7 @@
 import { mlAPI } from '../services/api';
 
 // Test ML API connectivity
-async function testMLAPI() {
+export async function testMLAPI() {
   console.log('Testing ML API...');
 
   try {

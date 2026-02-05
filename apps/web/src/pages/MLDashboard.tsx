@@ -12,7 +12,7 @@ export default function MLDashboard() {
   const [models, setModels] = useState<ModelsListResponse | null>(null);
   const [anomalies, setAnomalies] = useState<AnomalyDetectionResponse | null>(null);
   const [isTraining, setIsTraining] = useState(false);
-  const [trainingResult, setTrainingResult] = useState<TrainModelResponse | null>(null);
+  const [, setTrainingResult] = useState<TrainModelResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

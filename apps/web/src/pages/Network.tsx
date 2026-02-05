@@ -119,7 +119,7 @@ const Network = () => {
         } else {
           // Map asset status to network device status
           deviceStatus = asset.status === 'online' ? 'reachable'
-            : asset.status === 'warning' ? 'degraded'
+            : asset.status === 'degraded' ? 'degraded'
             : 'unreachable';
         }
 
@@ -127,10 +127,10 @@ const Network = () => {
           id: asset.id,
           name: asset.name,
           type: asset.type,
-          ipAddress: asset.ip || (asset as any).ipAddress,
+          ipAddress: asset.ip || asset.ipAddress || '',
           status: deviceStatus,
-          vendor: asset.vendor,
-          model: asset.model,
+          vendor: asset.vendor || '',
+          model: asset.model || '',
           location: asset.location,
           tier: (asset as any).tier,
           uptime: deviceStatus === 'reachable' ? 99.9 : deviceStatus === 'degraded' ? 85.0 : 0,

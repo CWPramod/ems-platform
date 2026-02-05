@@ -14,7 +14,6 @@ import {
   Descriptions,
   Typography,
   Badge,
-  Tooltip,
   Spin,
   message,
   Form,
@@ -37,7 +36,7 @@ import {
   PlusOutlined,
   UploadOutlined,
   StopOutlined,
-  ArrowUpOutlined,
+  // ArrowUpOutlined,
 } from '@ant-design/icons';
 import {
   PieChart,
@@ -47,10 +46,10 @@ import {
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
+  // CartesianGrid,
   Tooltip as RTooltip,
   ResponsiveContainer,
-  Legend,
+  // Legend,
 } from 'recharts';
 import { securityAPI } from '../services/api';
 import type {

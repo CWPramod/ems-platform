@@ -29,16 +29,10 @@ const NetworkTopology = ({ devices, onDeviceSelect }: NetworkTopologyProps) => {
     const radius = Math.min(canvas.width, canvas.height) * 0.35;
 
     // Group devices by type
-    const routers = devices.filter(d => d.type === 'router');
-    const switches = devices.filter(d => d.type === 'switch');
-    const firewalls = devices.filter(d => d.type === 'firewall');
-    const loadBalancers = devices.filter(d => d.type === 'load_balancer');
-    const others = devices.filter(d => !['router', 'switch', 'firewall', 'load_balancer'].includes(d.type));
-
     // Draw connections (simplified - connect all to center)
     ctx.strokeStyle = '#E5E7EB';
     ctx.lineWidth = 2;
-    devices.forEach((device, index) => {
+    devices.forEach((_device, index) => {
       const angle = (index / devices.length) * 2 * Math.PI;
       const x = centerX + radius * Math.cos(angle);
       const y = centerY + radius * Math.sin(angle);
