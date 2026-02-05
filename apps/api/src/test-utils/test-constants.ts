@@ -1,0 +1,9 @@
+export const TEST_USER_ID = 1;
+export const TEST_USERNAME = 'testuser';
+export const TEST_EMAIL = 'test@example.com';
+export const TEST_PASSWORD = 'Test@12345';
+export const TEST_PASSWORD_HASH = '$2b$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012';
+export const TEST_JWT_SECRET = 'test-jwt-secret-key-for-testing';
+export const TEST_LICENSE_SECRET = 'test-license-signing-secret-key';
+export const TEST_UUID = '550e8400-e29b-41d4-a716-446655440000';
+export const TEST_SESSION_TOKEN = '12345678-1234-1234-1234-123456789abc';

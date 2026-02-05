@@ -73,12 +73,12 @@ export class DashboardService {
     // Get health statistics
     const healthStats = await this.healthRepo
       .createQueryBuilder('h')
-      .select('AVG(h.health_score)', 'avgHealthScore')
-      .addSelect('AVG(h.cpu_utilization)', 'avgCpu')
-      .addSelect('AVG(h.memory_utilization)', 'avgMemory')
-      .addSelect('SUM(h.active_alerts_count)', 'totalActiveAlerts')
-      .addSelect('SUM(h.critical_alerts_count)', 'totalCriticalAlerts')
-      .where('h.is_critical = :critical', { critical: true })
+      .select('AVG(h.healthScore)', 'avgHealthScore')
+      .addSelect('AVG(h.cpuUtilization)', 'avgCpu')
+      .addSelect('AVG(h.memoryUtilization)', 'avgMemory')
+      .addSelect('SUM(h.activeAlertsCount)', 'totalActiveAlerts')
+      .addSelect('SUM(h.criticalAlertsCount)', 'totalCriticalAlerts')
+      .where('h.isCritical = :critical', { critical: true })
       .getRawOne();
 
     return {
@@ -131,27 +131,27 @@ export class DashboardService {
 
     switch (metric) {
       case 'cpu':
-        orderByField = 'h.cpu_utilization';
+        orderByField = 'h.cpuUtilization';
         break;
       case 'memory':
-        orderByField = 'h.memory_utilization';
+        orderByField = 'h.memoryUtilization';
         break;
       case 'bandwidth':
-        orderByField = '(COALESCE(h.bandwidth_in_mbps, 0) + COALESCE(h.bandwidth_out_mbps, 0))';
+        orderByField = '(COALESCE(h.bandwidthInMbps, 0) + COALESCE(h.bandwidthOutMbps, 0))';
         break;
       case 'alerts':
-        orderByField = 'h.active_alerts_count';
+        orderByField = 'h.activeAlertsCount';
         break;
       default:
-        orderByField = 'h.health_score';
+        orderByField = 'h.healthScore';
         orderDirection = 'ASC'; // Lower health score = worse
     }
 
     const query = this.healthRepo
       .createQueryBuilder('h')
-      .where('h.is_critical = :critical', { critical: true })
+      .where('h.isCritical = :critical', { critical: true })
       .orderBy(orderByField, orderDirection)
-      .addOrderBy('h.health_score', 'ASC') // Secondary sort
+      .addOrderBy('h.healthScore', 'ASC') // Secondary sort
       .limit(limit);
 
     const results = await query.getMany();
@@ -180,10 +180,10 @@ export class DashboardService {
   async getDevicesWithAlerts(): Promise<any[]> {
     const devicesWithAlerts = await this.healthRepo
       .createQueryBuilder('h')
-      .where('h.active_alerts_count > 0')
-      .andWhere('h.is_critical = :critical', { critical: true })
-      .orderBy('h.critical_alerts_count', 'DESC')
-      .addOrderBy('h.warning_alerts_count', 'DESC')
+      .where('h.activeAlertsCount > 0')
+      .andWhere('h.isCritical = :critical', { critical: true })
+      .orderBy('h.criticalAlertsCount', 'DESC')
+      .addOrderBy('h.warningAlertsCount', 'DESC')
       .getMany();
 
     return Promise.all(

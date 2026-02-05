@@ -28,26 +28,45 @@ const Network = () => {
     try {
       setLoading(true);
 
-      // Fetch data in parallel
-      const [assetsRes, statusRes, eventsRes] = await Promise.all([
-        assetsAPI.getAll(),
-        nmsAPI.getStatus(),
-        eventsAPI.getAll({ source: 'nms' }),
-      ]);
+      // Fetch each data source independently so one failure doesn't block others
+      let allAssets: Asset[] = [];
+      let nmsStatusData: NMSStatus | null = null;
+      let eventsData: Event[] = [];
 
-      // Get all assets
-      const allAssets = assetsRes.data || [];
-      
-      // Filter for network devices
-      const networkAssets = allAssets.filter((asset: Asset) => 
-        NETWORK_DEVICE_TYPES.includes(asset.type) && 
-        (asset.status === 'online' || asset.status === 'active')
+      // 1. Fetch assets (always available from main API)
+      try {
+        const assetsRes = await assetsAPI.getAll();
+        allAssets = assetsRes.data || [];
+      } catch (err) {
+        console.warn('Failed to load assets:', err);
+      }
+
+      // 2. Try NMS status (may not be running - service was migrated)
+      try {
+        const statusRes = await nmsAPI.getStatus();
+        nmsStatusData = statusRes;
+      } catch {
+        // NMS service not available - this is OK, we'll use asset status directly
+        console.info('NMS service not available, using asset status directly');
+      }
+
+      // 3. Fetch events
+      try {
+        const eventsRes = await eventsAPI.getAll({ source: 'nms' });
+        eventsData = eventsRes.data || [];
+      } catch {
+        console.warn('Failed to load events');
+      }
+
+      // Filter for network devices (include all statuses, not just online)
+      const networkAssets = allAssets.filter((asset: Asset) =>
+        NETWORK_DEVICE_TYPES.includes(asset.type)
       );
 
-      // Create device status map from NMS
+      // Create device status map from NMS if available
       const deviceStatusMap = new Map();
-      if (statusRes.devices) {
-        statusRes.devices.forEach((device: any) => {
+      if (nmsStatusData?.devices) {
+        nmsStatusData.devices.forEach((device: any) => {
           deviceStatusMap.set(device.assetId, {
             isReachable: device.isReachable,
             lastPollTime: device.lastPollTime,
@@ -56,29 +75,40 @@ const Network = () => {
         });
       }
 
-      // Merge asset data with NMS status
+      // Merge asset data with NMS status (or use asset status as fallback)
       const enrichedDevices: NetworkDevice[] = networkAssets.map((asset: Asset) => {
-        const nmsStatus = deviceStatusMap.get(asset.id);
-        
+        const nmsDeviceStatus = deviceStatusMap.get(asset.id);
+
+        // Determine status: use NMS if available, otherwise map from asset status
+        let deviceStatus: string;
+        if (nmsDeviceStatus) {
+          deviceStatus = nmsDeviceStatus.isReachable ? 'reachable' : 'unreachable';
+        } else {
+          // Map asset status to network device status
+          deviceStatus = asset.status === 'online' ? 'reachable'
+            : asset.status === 'warning' ? 'degraded'
+            : 'unreachable';
+        }
+
         return {
           id: asset.id,
           name: asset.name,
           type: asset.type,
           ipAddress: asset.ip || (asset as any).ipAddress,
-          status: nmsStatus?.isReachable ? 'reachable' : 'unreachable',
+          status: deviceStatus,
           vendor: asset.vendor,
           model: asset.model,
           location: asset.location,
           tier: (asset as any).tier,
-          uptime: nmsStatus?.isReachable ? 99.9 : 0, // Mock uptime based on reachability
-          lastSeen: nmsStatus?.lastPollTime,
+          uptime: deviceStatus === 'reachable' ? 99.9 : deviceStatus === 'degraded' ? 85.0 : 0,
+          lastSeen: nmsDeviceStatus?.lastPollTime,
           metadata: asset.metadata,
         };
       });
 
-      setNmsStatus(statusRes);
+      setNmsStatus(nmsStatusData);
       setDevices(enrichedDevices);
-      setEvents(eventsRes.data || []);
+      setEvents(eventsData);
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Failed to load network data:', error);

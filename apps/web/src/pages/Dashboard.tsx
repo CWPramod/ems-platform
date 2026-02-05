@@ -65,9 +65,9 @@ export default function Dashboard() {
 
   // Calculate stats from devices
   const totalDevices = devices.length;
-  const healthyDevices = devices.filter(d => d.status === 'up').length;
+  const healthyDevices = devices.filter(d => d.status === 'online').length;
   const warningDevices = devices.filter(d => d.status === 'warning').length;
-  const criticalDevices = devices.filter(d => d.status === 'down').length;
+  const criticalDevices = devices.filter(d => d.status === 'offline' || d.status === 'critical').length;
 
   // Table columns - simplified
   const columns: ColumnsType<any> = [
@@ -112,12 +112,14 @@ export default function Dashboard() {
       key: 'status',
       render: (status: string) => {
         const config: any = {
-          up: { color: 'success', icon: <CheckCircleOutlined /> },
+          online: { color: 'success', icon: <CheckCircleOutlined /> },
           warning: { color: 'warning', icon: <ExclamationCircleOutlined /> },
-          down: { color: 'error', icon: <CloseCircleOutlined /> },
+          offline: { color: 'error', icon: <CloseCircleOutlined /> },
+          critical: { color: 'error', icon: <CloseCircleOutlined /> },
+          maintenance: { color: 'default', icon: <ExclamationCircleOutlined /> },
         };
-        const statusConfig = config[status] || config.up;
-        return <Tag icon={statusConfig.icon} color={statusConfig.color}>{status?.toUpperCase() || 'UP'}</Tag>;
+        const statusConfig = config[status] || config.online;
+        return <Tag icon={statusConfig.icon} color={statusConfig.color}>{status?.toUpperCase() || 'ONLINE'}</Tag>;
       },
     },
     {
@@ -228,7 +230,7 @@ export default function Dashboard() {
           <Card title="Device Distribution">
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               <div>
-                <Text>Healthy (UP): </Text>
+                <Text>Online: </Text>
                 <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>{healthyDevices}</Text>
               </div>
               <div>
@@ -236,7 +238,7 @@ export default function Dashboard() {
                 <Text strong style={{ fontSize: '24px', color: '#faad14' }}>{warningDevices}</Text>
               </div>
               <div>
-                <Text>Critical (DOWN): </Text>
+                <Text>Offline / Critical: </Text>
                 <Text strong style={{ fontSize: '24px', color: '#f5222d' }}>{criticalDevices}</Text>
               </div>
             </Space>

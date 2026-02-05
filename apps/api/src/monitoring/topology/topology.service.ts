@@ -48,12 +48,14 @@ export class TopologyService {
     const deviceIds = devices.map(d => d.id);
 
     // Get connections between these devices
-    const connections = await this.connectionRepo
-      .createQueryBuilder('c')
-      .where('c.source_asset_id IN (:...ids)', { ids: deviceIds })
-      .andWhere('c.destination_asset_id IN (:...ids)', { ids: deviceIds })
-      .andWhere('c.is_active = :active', { active: true })
-      .getMany();
+    const connections = deviceIds.length > 0
+      ? await this.connectionRepo
+          .createQueryBuilder('c')
+          .where('c.sourceAssetId IN (:...ids)', { ids: deviceIds })
+          .andWhere('c.destinationAssetId IN (:...ids)', { ids: deviceIds })
+          .andWhere('c.isActive = :active', { active: true })
+          .getMany()
+      : [];
 
     // Format for visualization
     const nodes = devices.map(d => ({

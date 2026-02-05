@@ -75,7 +75,8 @@ export class RbacService {
       [userId]
     );
     
-    return result[0]?.name === 'admin';
+    const roleName = result[0]?.name;
+    return roleName === 'admin' || roleName === 'super_admin';
   }
 
   /**

@@ -32,14 +32,14 @@ export class TopTalkersService {
 
     const query = this.trafficRepo
       .createQueryBuilder('tf')
-      .select('tf.asset_id', 'assetId')
-      .addSelect('SUM(tf.bytes_in + tf.bytes_out)', 'totalBytes')
-      .addSelect('SUM(tf.packets_in + tf.packets_out)', 'totalPackets')
+      .select('tf.assetId', 'assetId')
+      .addSelect('SUM(tf.bytesIn + tf.bytesOut)', 'totalBytes')
+      .addSelect('SUM(tf.packetsIn + tf.packetsOut)', 'totalPackets')
       .addSelect('COUNT(*)', 'flowCount')
       .where('tf.timestamp >= :startTime', { startTime })
-      .groupBy('tf.asset_id')
+      .groupBy('tf.assetId')
       .orderBy(
-        metric === 'bytes' ? 'SUM(tf.bytes_in + tf.bytes_out)' : 'SUM(tf.packets_in + tf.packets_out)',
+        metric === 'bytes' ? 'SUM(tf.bytesIn + tf.bytesOut)' : 'SUM(tf.packetsIn + tf.packetsOut)',
         'DESC'
       )
       .limit(limit);
@@ -90,15 +90,15 @@ export class TopTalkersService {
 
     const query = this.trafficRepo
       .createQueryBuilder('tf')
-      .select('tf.source_ip', 'sourceIp')
-      .addSelect('tf.destination_ip', 'destinationIp')
+      .select('tf.sourceIp', 'sourceIp')
+      .addSelect('tf.destinationIp', 'destinationIp')
       .addSelect('tf.protocol', 'protocol')
-      .addSelect('SUM(tf.bytes_in + tf.bytes_out)', 'totalBytes')
-      .addSelect('SUM(tf.packets_in + tf.packets_out)', 'totalPackets')
+      .addSelect('SUM(tf.bytesIn + tf.bytesOut)', 'totalBytes')
+      .addSelect('SUM(tf.packetsIn + tf.packetsOut)', 'totalPackets')
       .addSelect('COUNT(*)', 'flowCount')
       .where('tf.timestamp >= :startTime', { startTime })
-      .groupBy('tf.source_ip, tf.destination_ip, tf.protocol')
-      .orderBy('SUM(tf.bytes_in + tf.bytes_out)', 'DESC')
+      .groupBy('tf.sourceIp, tf.destinationIp, tf.protocol')
+      .orderBy('SUM(tf.bytesIn + tf.bytesOut)', 'DESC')
       .limit(limit);
 
     const results = await query.getRawMany();
@@ -130,13 +130,13 @@ export class TopTalkersService {
     const query = this.trafficRepo
       .createQueryBuilder('tf')
       .select('tf.protocol', 'protocol')
-      .addSelect('SUM(tf.bytes_in + tf.bytes_out)', 'totalBytes')
-      .addSelect('SUM(tf.packets_in + tf.packets_out)', 'totalPackets')
+      .addSelect('SUM(tf.bytesIn + tf.bytesOut)', 'totalBytes')
+      .addSelect('SUM(tf.packetsIn + tf.packetsOut)', 'totalPackets')
       .addSelect('COUNT(*)', 'flowCount')
-      .addSelect('COUNT(DISTINCT tf.asset_id)', 'deviceCount')
+      .addSelect('COUNT(DISTINCT tf.assetId)', 'deviceCount')
       .where('tf.timestamp >= :startTime', { startTime })
       .groupBy('tf.protocol')
-      .orderBy('SUM(tf.bytes_in + tf.bytes_out)', 'DESC')
+      .orderBy('SUM(tf.bytesIn + tf.bytesOut)', 'DESC')
       .limit(limit);
 
     const results = await query.getRawMany();
@@ -169,15 +169,15 @@ export class TopTalkersService {
 
     const query = this.trafficRepo
       .createQueryBuilder('tf')
-      .select('tf.interface_id', 'interfaceId')
-      .addSelect('tf.asset_id', 'assetId')
-      .addSelect('SUM(tf.bytes_in)', 'bytesIn')
-      .addSelect('SUM(tf.bytes_out)', 'bytesOut')
-      .addSelect('SUM(tf.bytes_in + tf.bytes_out)', 'totalBytes')
+      .select('tf.interfaceId', 'interfaceId')
+      .addSelect('tf.assetId', 'assetId')
+      .addSelect('SUM(tf.bytesIn)', 'bytesIn')
+      .addSelect('SUM(tf.bytesOut)', 'bytesOut')
+      .addSelect('SUM(tf.bytesIn + tf.bytesOut)', 'totalBytes')
       .where('tf.timestamp >= :startTime', { startTime })
-      .andWhere('tf.interface_id IS NOT NULL')
-      .groupBy('tf.interface_id, tf.asset_id')
-      .orderBy('SUM(tf.bytes_in + tf.bytes_out)', 'DESC')
+      .andWhere('tf.interfaceId IS NOT NULL')
+      .groupBy('tf.interfaceId, tf.assetId')
+      .orderBy('SUM(tf.bytesIn + tf.bytesOut)', 'DESC')
       .limit(limit);
 
     const results = await query.getRawMany();
@@ -292,10 +292,10 @@ export class TopTalkersService {
 
     const stats = await this.trafficRepo
       .createQueryBuilder('tf')
-      .select('SUM(tf.bytes_in + tf.bytes_out)', 'totalBytes')
-      .addSelect('SUM(tf.packets_in + tf.packets_out)', 'totalPackets')
+      .select('SUM(tf.bytesIn + tf.bytesOut)', 'totalBytes')
+      .addSelect('SUM(tf.packetsIn + tf.packetsOut)', 'totalPackets')
       .addSelect('COUNT(*)', 'totalFlows')
-      .addSelect('COUNT(DISTINCT tf.asset_id)', 'activeDevices')
+      .addSelect('COUNT(DISTINCT tf.assetId)', 'activeDevices')
       .addSelect('COUNT(DISTINCT tf.protocol)', 'protocolCount')
       .where('tf.timestamp >= :startTime', { startTime })
       .getRawOne();
