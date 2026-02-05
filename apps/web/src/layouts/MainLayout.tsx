@@ -35,10 +35,13 @@ import {
   ApartmentOutlined,
   BarChartOutlined,
   FileTextOutlined,
+  SecurityScanOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { APP_MODE, FEATURES } from '../config/appMode';
 import { useAuth } from '../contexts/AuthContext';
+import LicenseWarningBanner from '../components/LicenseWarningBanner';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -131,6 +134,16 @@ export default function MainLayout() {
       key: '/metrics',
       icon: <AreaChartOutlined />,
       label: 'Metrics',
+    },
+    {
+      key: '/security',
+      icon: <SecurityScanOutlined />,
+      label: 'Security',
+    },
+    {
+      key: '/license',
+      icon: <SafetyCertificateOutlined />,
+      label: 'License',
     },
 
     // EMS-only Menus
@@ -279,6 +292,9 @@ export default function MainLayout() {
             </Dropdown>
           </Space>
         </Header>
+
+        {/* License Warning Banner */}
+        <LicenseWarningBanner />
 
         {/* Breadcrumb */}
         <div

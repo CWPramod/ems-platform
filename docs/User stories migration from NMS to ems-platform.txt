@@ -1,0 +1,27 @@
+"User Stories" to be migrated from C:\NMS to the NMS app module within ems-platform project:
+
+-Pl see project foldder C:\NMS, review all front end, back end, config files.
+-Claude has already developed following user stories in above files. Pl review these user stories and transfer all these features in our NMS module within our C:\Dev\ems-platform project.
+-Pl keep all existing features, configurations of ems-platform unchanged. 
+-Pl keep "Security features' recently added to ems-platform unchanged.
+-Pl see all the relevant named screenshots in C:\Pictures\screenshots.
+-Aim is to consolidate all the features from C:\NMS into NMS app module within our project C:\ems-platform.
+-See the "User stories" list below:
+-Role Based Access Control System (RBAC). Two roles: User and Admin.
+-Password Control Mechanism, minimum 8 digits alpha numeric password, automatic session logout after in-action for 30 mins
+-"CANARIS Logo" on all key dashboards
+-Additional Widgets/Pages/dashboards with content details as follows:
+-Masters:Customer Master, customer hierarchy HO & Branches, Page to Add Nodes with device details like OEM make, model, IP address, whether critical or normal, protocol, polling intervals, customer and branch location, Page for Auto Discovery for physical, logical,wired & wireless Networks. Define KPIs (Key Performance Indicators : System Availability/ down time, Network Bandwidth/ Traffic, Network Speed/ Performance, CPU, Memory, Disc Usage, Latency, Packet Loss, Jitters, Ping and HTTP Availability, QoS and VoIP, Page for Configuration Management for creating templates for different configs,Option to push configs across the select networks through CLI, Take scheduled back-ups, Page to set alarm thresholds for all critical telemetry parameters.
+-Provision for bulk node import through csv, excel file.
+-Admin: Supports all Key Admin functions
+-Reports: Uptime, SLA and Performance reports: Historical Reports, Filter selection based on branch, customer, location and KPIs as defined in Master. SLA Reports based on KPIs, Option to email, export reports into csv, excel formats, option to auto generate daily reports based on summary parameters like system uptime, downtime, bandwidth and traffic analysis.
+-Graphs: Historical Graphs, Filter selection for time period, nodes, customers, branches and all KPIs as defined in Master
+-Top Talker page: display graphs on both egress and ingress bandwidth utilization analysis based on IP address, protocols, ports, aplications and users
+-Topology: Configurable Topology with aility to show based on customer locations, Geo Location. Color coding like When link goes down, green color should turn red. 
+-Dashboard: List all "Critical Devices" to showcase similar functions like main device dashboard. See screenshot.
+-Drill down function on Dashboard critical devices page:clickable feature to show further detailed device data like Device model, make, IP Address, Location, interface details, Health parameters like RAM, Memory, CPU Utilization, Bandwidth utilization, latency, jitters and packet loss data, click on each interface to show further interface bandwidth data,
+-Licensing function, should be able to issue license for specified period, demo trial for 15 days.
+-Alarm: Alarm module should have severity levels defined viz: Information, Error, Critical. See screenshot.
+-Co-relations module:see corelations screenshot for details.
+-Pl check if all these are already developed. If not complete those features.
+-End of document-

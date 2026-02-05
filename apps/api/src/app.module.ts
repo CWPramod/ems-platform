@@ -15,6 +15,8 @@ import { EventsModule } from './events/events.module';
 import { AlertsModule } from './alerts/alerts.module';
 import { CloudModule } from './cloud/cloud.module';
 import { ApmModule } from './apm/apm.module';
+import { SecurityModule } from './security/security.module';
+import { LicensingModule } from './licensing/licensing.module';
 
 @Module({
   imports: [
@@ -29,7 +31,7 @@ import { ApmModule } from './apm/apm.module';
       password: process.env.DATABASE_PASSWORD || 'ems_secure_password_2026',
       database: process.env.DATABASE_NAME || 'ems_platform',
       entities: [__dirname + '/**/*.entity{.ts,.js}'],
-      synchronize: false,
+      synchronize: true,
       logging: true,
     }),
     // Schedule module for cron jobs (session cleanup, etc.)
@@ -50,6 +52,10 @@ import { ApmModule } from './apm/apm.module';
     AlertsModule,
     CloudModule,
     ApmModule,
+    // Security Module (SSL, IOC, Signatures, DDoS)
+    SecurityModule,
+    // Licensing Module (license validation, feature gating, trial provisioning)
+    LicensingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

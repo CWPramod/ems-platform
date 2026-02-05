@@ -305,3 +305,229 @@ export interface AnomalyScoresResponse {
   scores: AnomalyScore[];
   total: number;
 }
+
+// ============================================================================
+// SECURITY TYPES
+// ============================================================================
+
+// SSL/TLS Certificate
+export interface SslCertificate {
+  id: string;
+  hostname: string;
+  port: number;
+  issuer: string;
+  subject: string;
+  serialNumber: string;
+  fingerprint: string;
+  status: 'valid' | 'expired' | 'expiring_soon' | 'self_signed' | 'invalid' | 'revoked';
+  tlsVersion: string;
+  cipherSuite: string;
+  keyLength: number;
+  isSelfSigned: boolean;
+  isChainValid: boolean;
+  issuedAt: string;
+  expiresAt: string;
+  daysUntilExpiry: number;
+  securityScore: number;
+  vulnerabilities: string[];
+  metadata?: Record<string, any>;
+  assetId?: string;
+  lastChecked: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SslSummary {
+  total: number;
+  valid: number;
+  expired: number;
+  expiringSoon: number;
+  selfSigned: number;
+  invalid: number;
+  revoked: number;
+  averageSecurityScore: number;
+  statusBreakdown: { status: string; count: number }[];
+}
+
+// IOC Entry
+export interface IocEntry {
+  id: string;
+  type: 'ip_address' | 'domain' | 'url' | 'file_hash' | 'email';
+  indicator: string;
+  source: string;
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  status: 'active' | 'matched' | 'expired' | 'false_positive';
+  threatType: string;
+  description: string;
+  matchCount: number;
+  lastMatchedAt: string | null;
+  lastMatchedSourceIp: string | null;
+  lastMatchedDestIp: string | null;
+  metadata?: Record<string, any>;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface IocSummary {
+  total: number;
+  active: number;
+  matched: number;
+  expired: number;
+  falsePositive: number;
+  totalMatches: number;
+  byType: { type: string; count: string }[];
+  bySeverity: { severity: string; count: string }[];
+}
+
+// Signature Alert
+export interface SignatureAlert {
+  id: string;
+  signatureId: string;
+  signatureName: string;
+  category: 'malware' | 'exploit' | 'reconnaissance' | 'policy_violation' | 'protocol_anomaly' | 'suspicious';
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
+  action: 'alert' | 'drop' | 'reject' | 'log';
+  sourceIp: string;
+  sourcePort: number;
+  destinationIp: string;
+  destinationPort: number;
+  protocol: string;
+  assetId?: string;
+  packetPayload?: string;
+  packetLength?: number;
+  description: string;
+  metadata?: Record<string, any>;
+  timestamp: string;
+  status: 'open' | 'acknowledged' | 'dismissed' | 'escalated';
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  dismissedBy?: string;
+  dismissedAt?: string;
+  escalatedBy?: string;
+  escalatedAt?: string;
+  escalationNotes?: string;
+  createdAt: string;
+}
+
+export interface SignatureSummary {
+  total: number;
+  last24h: number;
+  criticalLastHour: number;
+  bySeverity: { severity: string; count: string }[];
+  byCategory: { category: string; count: string }[];
+}
+
+export interface PacketDrilldown {
+  alertId: string;
+  signatureId: string;
+  signatureName: string;
+  packetLength: number;
+  hexDump: string;
+  rawBase64: string;
+}
+
+// DDoS Event
+export interface DdosEvent {
+  id: string;
+  attackType: 'volumetric' | 'application' | 'protocol' | 'scanning';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  status: 'active' | 'mitigated' | 'resolved';
+  targetIp: string;
+  targetPort: number;
+  sourceIps: string[];
+  targetAssetName: string;
+  targetAssetId?: string;
+  routerInterface: string;
+  customerName: string;
+  asn: string;
+  peakBandwidthGbps: number;
+  peakPps: number;
+  totalPackets: number;
+  totalBytes: number;
+  durationSeconds: number;
+  attackVectors: string[];
+  description: string;
+  mitigationStrategy?: string;
+  mitigationInitiatedBy?: string;
+  mitigationNotes?: string;
+  resolvedBy?: string;
+  resolutionNotes?: string;
+  metadata?: Record<string, any>;
+  detectedAt: string;
+  mitigatedAt: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DdosSummary {
+  total: number;
+  active: number;
+  mitigated: number;
+  resolved: number;
+  peakBandwidthGbps: number;
+  averageDurationSeconds: number;
+  byType: { attackType: string; count: string }[];
+}
+
+export interface DdosReport {
+  event: DdosEvent;
+  analysis: {
+    targetDetails: {
+      ip: string;
+      port: number;
+      assetName: string;
+      routerInterface: string;
+      customerName: string;
+      asn: string;
+    };
+    attackProfile: {
+      type: string;
+      vectors: string[];
+      peakBandwidthGbps: number;
+      peakPps: number;
+      totalPackets: number;
+      totalBytes: number;
+      totalGB: string;
+      durationSeconds: number;
+      durationMinutes: number;
+    };
+    sourceAnalysis: {
+      totalSources: number;
+      sourceIps: string[];
+    };
+    impact: {
+      severity: string;
+      status: string;
+      detectedAt: string;
+      mitigatedAt: string | null;
+      resolvedAt: string | null;
+      timeToMitigate: number | null;
+    };
+    mitigation?: {
+      strategy: string | null;
+      initiatedBy: string | null;
+      notes: string | null;
+      resolvedBy: string | null;
+      resolutionNotes: string | null;
+    };
+  };
+}
+
+// IOC Create Payload
+export interface IocCreatePayload {
+  type: string;
+  indicator: string;
+  source: string;
+  severity?: string;
+  threatType?: string;
+  description?: string;
+}
+
+export interface SecurityOverview {
+  ssl: { averageScore: number; total: number; expired: number; expiringSoon: number };
+  ioc: { totalMatches: number; active: number; matched: number };
+  signatures: { total: number; last24h: number; criticalLastHour: number };
+  ddos: { active: number; mitigated: number; peakBandwidthGbps: number };
+}

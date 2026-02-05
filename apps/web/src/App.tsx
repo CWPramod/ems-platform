@@ -20,6 +20,8 @@ import Cloud from './pages/Cloud';
 import APM from './pages/APM';
 import Network from './pages/Network';
 import MLDashboard from './pages/MLDashboard';
+import Security from './pages/Security';
+import LicenseManagement from './pages/LicenseManagement';
 import { APP_MODE, FEATURES } from './config/appMode';
 
 export default function App() {
@@ -51,6 +53,8 @@ export default function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/metrics" element={<Metrics />} />
+          <Route path="/security" element={<Security />} />
+          <Route path="/license" element={<LicenseManagement />} />
 
           {/* EMS-only routes (enabled only in EMS mode) */}
           {FEATURES[APP_MODE].showITSM && (

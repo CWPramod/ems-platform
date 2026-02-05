@@ -15,7 +15,18 @@ import type {
   ModelsListResponse,
   AssetMetricsResponse,
   AnomalyScoresResponse,
-
+  SslCertificate,
+  SslSummary,
+  IocEntry,
+  IocSummary,
+  IocCreatePayload,
+  SignatureAlert,
+  SignatureSummary,
+  PacketDrilldown,
+  DdosEvent,
+  DdosSummary,
+  DdosReport,
+  SecurityOverview,
 } from '../types';
 
 // API Base URLs
@@ -279,6 +290,178 @@ export const healthAPI = {
   },
 };
 
+// ============================================================================
+// SECURITY API
+// ============================================================================
+
+export const securityAPI = {
+  // Overview
+  getOverview: async (): Promise<SecurityOverview> => {
+    const response = await nestAPI.get('/api/v1/security/overview');
+    return response.data;
+  },
+
+  // SSL/TLS
+  getSslCertificates: async (params?: {
+    status?: string;
+    hostname?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ data: SslCertificate[]; total: number }> => {
+    const response = await nestAPI.get('/api/v1/security/ssl/certificates', { params });
+    return response.data;
+  },
+
+  getSslCertificateById: async (id: string): Promise<SslCertificate> => {
+    const response = await nestAPI.get(`/api/v1/security/ssl/certificates/${id}`);
+    return response.data;
+  },
+
+  getSslSummary: async (): Promise<SslSummary> => {
+    const response = await nestAPI.get('/api/v1/security/ssl/summary');
+    return response.data;
+  },
+
+  scanSslHost: async (hostname: string, port?: number): Promise<any> => {
+    const response = await nestAPI.post('/api/v1/security/ssl/scan', { hostname, port });
+    return response.data;
+  },
+
+  // IOC
+  getIocEntries: async (params?: {
+    type?: string;
+    severity?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ data: IocEntry[]; total: number }> => {
+    const response = await nestAPI.get('/api/v1/security/ioc/entries', { params });
+    return response.data;
+  },
+
+  getIocEntryById: async (id: string): Promise<IocEntry> => {
+    const response = await nestAPI.get(`/api/v1/security/ioc/entries/${id}`);
+    return response.data;
+  },
+
+  getIocSummary: async (): Promise<IocSummary> => {
+    const response = await nestAPI.get('/api/v1/security/ioc/summary');
+    return response.data;
+  },
+
+  getIocRecentMatches: async (limit?: number): Promise<IocEntry[]> => {
+    const response = await nestAPI.get('/api/v1/security/ioc/recent-matches', {
+      params: { limit },
+    });
+    return response.data;
+  },
+
+  createIocEntry: async (data: IocCreatePayload): Promise<IocEntry> => {
+    const response = await nestAPI.post('/api/v1/security/ioc/entries', data);
+    return response.data;
+  },
+
+  importIocCsv: async (csvContent: string): Promise<{ imported: number; errors: number }> => {
+    const response = await nestAPI.post('/api/v1/security/ioc/import', { csvContent });
+    return response.data;
+  },
+
+  updateIocStatus: async (id: string, status: string): Promise<IocEntry> => {
+    const response = await nestAPI.put(`/api/v1/security/ioc/entries/${id}/status`, { status });
+    return response.data;
+  },
+
+  // Signatures
+  getSignatureAlerts: async (params?: {
+    category?: string;
+    severity?: string;
+    sourceIp?: string;
+    destinationIp?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ data: SignatureAlert[]; total: number }> => {
+    const response = await nestAPI.get('/api/v1/security/signatures/alerts', { params });
+    return response.data;
+  },
+
+  getSignatureAlertById: async (id: string): Promise<SignatureAlert> => {
+    const response = await nestAPI.get(`/api/v1/security/signatures/alerts/${id}`);
+    return response.data;
+  },
+
+  getSignatureSummary: async (): Promise<SignatureSummary> => {
+    const response = await nestAPI.get('/api/v1/security/signatures/summary');
+    return response.data;
+  },
+
+  getPacketDrilldown: async (id: string): Promise<PacketDrilldown> => {
+    const response = await nestAPI.get(`/api/v1/security/signatures/alerts/${id}/packet`);
+    return response.data;
+  },
+
+  acknowledgeSignatureAlert: async (id: string, by: string): Promise<SignatureAlert> => {
+    const response = await nestAPI.post(`/api/v1/security/signatures/alerts/${id}/acknowledge`, { by });
+    return response.data;
+  },
+
+  dismissSignatureAlert: async (id: string, by: string): Promise<SignatureAlert> => {
+    const response = await nestAPI.post(`/api/v1/security/signatures/alerts/${id}/dismiss`, { by });
+    return response.data;
+  },
+
+  escalateSignatureAlert: async (id: string, by: string, notes?: string): Promise<SignatureAlert> => {
+    const response = await nestAPI.post(`/api/v1/security/signatures/alerts/${id}/escalate`, { by, notes });
+    return response.data;
+  },
+
+  bulkSignatureAction: async (ids: string[], action: string, by: string, notes?: string): Promise<{ updated: number }> => {
+    const response = await nestAPI.post('/api/v1/security/signatures/alerts/bulk-action', { ids, action, by, notes });
+    return response.data;
+  },
+
+  // DDoS
+  getDdosEvents: async (params?: {
+    status?: string;
+    attackType?: string;
+    severity?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{ data: DdosEvent[]; total: number }> => {
+    const response = await nestAPI.get('/api/v1/security/ddos/events', { params });
+    return response.data;
+  },
+
+  getDdosEventById: async (id: string): Promise<DdosEvent> => {
+    const response = await nestAPI.get(`/api/v1/security/ddos/events/${id}`);
+    return response.data;
+  },
+
+  getDdosSummary: async (): Promise<DdosSummary> => {
+    const response = await nestAPI.get('/api/v1/security/ddos/summary');
+    return response.data;
+  },
+
+  getDdosActiveAttacks: async (): Promise<DdosEvent[]> => {
+    const response = await nestAPI.get('/api/v1/security/ddos/active');
+    return response.data;
+  },
+
+  getDdosReport: async (id: string): Promise<DdosReport> => {
+    const response = await nestAPI.get(`/api/v1/security/ddos/report/${id}`);
+    return response.data;
+  },
+
+  mitigateDdosEvent: async (id: string, data: { strategy: string; initiatedBy: string; notes?: string }): Promise<DdosEvent> => {
+    const response = await nestAPI.post(`/api/v1/security/ddos/events/${id}/mitigate`, data);
+    return response.data;
+  },
+
+  resolveDdosEvent: async (id: string, data: { resolvedBy: string; notes?: string }): Promise<DdosEvent> => {
+    const response = await nestAPI.post(`/api/v1/security/ddos/events/${id}/resolve`, data);
+    return response.data;
+  },
+};
+
 export default {
   assetsAPI,
   metricsAPI,
@@ -287,4 +470,5 @@ export default {
   mlAPI,
   nmsAPI,
   healthAPI,
+  securityAPI,
 };

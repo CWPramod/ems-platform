@@ -10,6 +10,8 @@ import { DashboardService } from './dashboard/dashboard.service';
 import { DrilldownService } from './drilldown/drilldown.service';
 import { TopologyService } from './topology/topology.service';
 import { TopTalkersService } from './top-talkers/top-talkers.service';
+import { SnmpMonitorService } from './services/snmp-monitor.service';
+import { TrafficFlowGeneratorService } from './services/traffic-flow-generator.service';
 
 // Controllers
 import { DashboardController } from './dashboard/dashboard.controller';
@@ -47,12 +49,16 @@ import { TrafficFlow } from '../entities/traffic-flow.entity';
     DrilldownService,
     TopologyService,
     TopTalkersService,
+    SnmpMonitorService,
+    TrafficFlowGeneratorService,
   ],
   exports: [
     DashboardService,
     DrilldownService,
     TopologyService,
     TopTalkersService,
+    SnmpMonitorService,
+    TrafficFlowGeneratorService,
   ],
 })
 export class MonitoringModule {}
