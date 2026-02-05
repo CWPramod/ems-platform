@@ -98,6 +98,33 @@ export class DashboardService {
   }
 
   /**
+   * Get devices filtered by status
+   */
+  async getDevicesByStatus(status: string): Promise<any[]> {
+    const devices = await this.assetRepo
+      .createQueryBuilder('a')
+      .where('a.status = :status', { status })
+      .andWhere('a.monitoringEnabled = :enabled', { enabled: true })
+      .orderBy('a.tier', 'ASC')
+      .addOrderBy('a.name', 'ASC')
+      .getMany();
+
+    const devicesWithHealth = await Promise.all(
+      devices.map(async (device) => {
+        const health = await this.healthRepo.findOne({
+          where: { assetId: device.id },
+        });
+        return {
+          ...device,
+          health: health || this.getDefaultHealth(device.id),
+        };
+      }),
+    );
+
+    return devicesWithHealth;
+  }
+
+  /**
    * Get device health details
    */
   async getDeviceHealth(assetId: string): Promise<any> {

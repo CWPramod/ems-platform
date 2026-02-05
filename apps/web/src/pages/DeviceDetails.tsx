@@ -1,4 +1,4 @@
-// Device Drill-down - Comprehensive Device Metrics
+// Device Drill-down - Comprehensive Device Metrics + Network Telemetry
 // apps/web/src/pages/DeviceDetails.tsx
 
 import { useState, useEffect } from 'react';
@@ -18,9 +18,7 @@ import {
   Progress,
   Tabs,
   Timeline,
-  Alert,
   message,
-  Divider,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -33,6 +31,10 @@ import {
   WifiOutlined,
   HistoryOutlined,
   LineChartOutlined,
+  ApiOutlined,
+  ClockCircleOutlined,
+  SwapOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import {
   LineChart,
@@ -51,14 +53,14 @@ import { apiService } from '../services/apiService';
 
 const { Title, Text } = Typography;
 const { Option } = Select;
-const { TabPane } = Tabs;
 
 export default function DeviceDetails() {
   const { deviceId } = useParams<{ deviceId: string }>();
   const navigate = useNavigate();
-  
+
   const [loading, setLoading] = useState(false);
   const [device, setDevice] = useState<any>(null);
+  const [health, setHealth] = useState<any>(null);
   const [performanceSummary, setPerformanceSummary] = useState<any>(null);
   const [cpuHistory, setCpuHistory] = useState<any[]>([]);
   const [memoryHistory, setMemoryHistory] = useState<any[]>([]);
@@ -78,155 +80,89 @@ export default function DeviceDetails() {
     try {
       // Fetch device overview
       const overviewResponse = await apiService.getDeviceOverview(deviceId!);
-      console.log('Device Overview:', overviewResponse);
-      
+
       if (overviewResponse.success && overviewResponse.data) {
         const apiData = overviewResponse.data;
-        
-        // Merge device and health data
-        const deviceData = {
-          ...apiData.device,
-          healthScore: parseFloat(apiData.health?.healthScore || '0'),
-          cpuUtilization: parseFloat(apiData.health?.cpuUtilization || '0'),
-          memoryUtilization: parseFloat(apiData.health?.memoryUtilization || '0'),
-          bandwidthInMbps: parseFloat(apiData.health?.bandwidthInMbps || '0'),
-          bandwidthOutMbps: parseFloat(apiData.health?.bandwidthOutMbps || '0'),
-          uptime: `Uptime: ${apiData.health?.uptimePercent24h || 0}% (24h)`,
-          firmwareVersion: apiData.device?.metadata?.os || 'N/A',
-          serialNumber: apiData.device?.id?.substring(0, 12) || 'N/A',
-          lastSeen: apiData.health?.lastHealthCheck || apiData.device?.updatedAt || new Date().toISOString(),
-        };
-        
-        setDevice(deviceData);
-        
-        // Set interfaces - use list from API or generate mock
+        setDevice(apiData.device);
+        setHealth(apiData.health);
+
+        // Set interfaces from API
         const interfacesList = apiData.interfaces?.list || [];
-        setInterfaces(interfacesList.length > 0 ? interfacesList : generateMockInterfaces());
-        
-        // Generate mock alerts (API doesn't return alerts in overview)
-        setAlerts(generateMockAlerts());
-        
-        // Set performance summary from health data
+        setInterfaces(interfacesList);
+
+        // Build performance summary from health data
+        const h = apiData.health;
         setPerformanceSummary({
-          currentCpu: parseFloat(apiData.health?.cpuUtilization || '0'),
-          avgCpu: parseFloat(apiData.health?.cpuUtilization || '0') * 0.85,
-          maxCpu: parseFloat(apiData.health?.cpuUtilization || '0') * 1.2,
-          currentMemory: parseFloat(apiData.health?.memoryUtilization || '0'),
-          avgMemory: parseFloat(apiData.health?.memoryUtilization || '0') * 0.9,
-          maxMemory: parseFloat(apiData.health?.memoryUtilization || '0') * 1.1,
-          currentBandwidth: parseFloat(apiData.health?.bandwidthInMbps || '0'),
-          avgBandwidth: parseFloat(apiData.health?.bandwidthInMbps || '0') * 0.8,
-          maxBandwidth: parseFloat(apiData.health?.bandwidthInMbps || '0') * 1.5,
-          healthScore: parseFloat(apiData.health?.healthScore || '0'),
-          slaCompliance: apiData.health?.slaCompliance || false,
-          uptimePercent: parseFloat(apiData.health?.uptimePercent24h || '0'),
+          currentCpu: parseFloat(h?.cpuUtilization || '0'),
+          avgCpu: parseFloat(h?.cpuUtilization || '0') * 0.85,
+          maxCpu: parseFloat(h?.cpuUtilization || '0') * 1.2,
+          currentMemory: parseFloat(h?.memoryUtilization || '0'),
+          avgMemory: parseFloat(h?.memoryUtilization || '0') * 0.9,
+          maxMemory: parseFloat(h?.memoryUtilization || '0') * 1.1,
+          currentBandwidth: parseFloat(h?.bandwidthInMbps || '0'),
+          avgBandwidth: parseFloat(h?.bandwidthInMbps || '0') * 0.8,
+          maxBandwidth: parseFloat(h?.bandwidthInMbps || '0') * 1.5,
+          healthScore: parseFloat(h?.healthScore || '0'),
+          slaCompliance: h?.slaCompliance || false,
+          uptimePercent: parseFloat(h?.uptimePercent24h || '0'),
         });
-      } else {
-        setDevice(generateMockDevice());
-        setInterfaces(generateMockInterfaces());
-        setAlerts(generateMockAlerts());
-        setPerformanceSummary(generateMockSummary());
       }
 
-      // Fetch CPU history
-      const cpuResponse = await apiService.getPerformanceHistory(deviceId!, 'cpu', timeRange);
-      if (cpuResponse.success && cpuResponse.data?.history) {
-        setCpuHistory(cpuResponse.data.history);
-      } else {
-        setCpuHistory(generateMockHistory('cpu'));
-      }
+      // Fetch performance histories
+      try {
+        const cpuResponse = await apiService.getPerformanceHistory(deviceId!, 'cpu', timeRange);
+        if (cpuResponse.success && cpuResponse.data?.data) {
+          setCpuHistory(cpuResponse.data.data.map((d: any) => ({
+            time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            value: d.value,
+          })));
+        } else {
+          setCpuHistory(generateMockHistory('cpu'));
+        }
+      } catch { setCpuHistory(generateMockHistory('cpu')); }
 
-      // Fetch Memory history
-      const memoryResponse = await apiService.getPerformanceHistory(deviceId!, 'memory', timeRange);
-      if (memoryResponse.success && memoryResponse.data?.history) {
-        setMemoryHistory(memoryResponse.data.history);
-      } else {
-        setMemoryHistory(generateMockHistory('memory'));
-      }
+      try {
+        const memoryResponse = await apiService.getPerformanceHistory(deviceId!, 'memory', timeRange);
+        if (memoryResponse.success && memoryResponse.data?.data) {
+          setMemoryHistory(memoryResponse.data.data.map((d: any) => ({
+            time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            value: d.value,
+          })));
+        } else {
+          setMemoryHistory(generateMockHistory('memory'));
+        }
+      } catch { setMemoryHistory(generateMockHistory('memory')); }
 
-      // Fetch Bandwidth history
-      const bandwidthResponse = await apiService.getPerformanceHistory(deviceId!, 'bandwidth', timeRange);
-      if (bandwidthResponse.success && bandwidthResponse.data?.history) {
-        setBandwidthHistory(bandwidthResponse.data.history);
-      } else {
-        setBandwidthHistory(generateMockHistory('bandwidth'));
-      }
+      try {
+        const bwResponse = await apiService.getPerformanceHistory(deviceId!, 'bandwidth', timeRange);
+        if (bwResponse.success && bwResponse.data?.data) {
+          setBandwidthHistory(bwResponse.data.data.map((d: any) => ({
+            time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            value: d.value,
+          })));
+        } else {
+          setBandwidthHistory(generateMockHistory('bandwidth'));
+        }
+      } catch { setBandwidthHistory(generateMockHistory('bandwidth')); }
 
-      message.success('Device details loaded successfully');
     } catch (error: any) {
       console.error('Error fetching device details:', error);
       message.error('Failed to load device details');
-      
-      // Set mock data on error
-      setDevice(generateMockDevice());
-      setPerformanceSummary(generateMockSummary());
-      setCpuHistory(generateMockHistory('cpu'));
-      setMemoryHistory(generateMockHistory('memory'));
-      setBandwidthHistory(generateMockHistory('bandwidth'));
-      setInterfaces(generateMockInterfaces());
-      setAlerts(generateMockAlerts());
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate mock device data
-  const generateMockDevice = () => ({
-    id: deviceId,
-    name: 'Core-Router-01',
-    type: 'router',
-    ip: '192.168.1.1',
-    location: 'Data Center 1',
-    tier: 1,
-    status: 'online',
-    vendor: 'Cisco',
-    model: 'ISR 4451',
-    serialNumber: 'FDO2201A1BX',
-    firmwareVersion: '17.3.4a',
-    uptime: '45 days, 12 hours',
-    lastSeen: new Date().toISOString(),
-  });
-
-  const generateMockSummary = () => ({
-    currentCpu: 45.2,
-    avgCpu: 38.5,
-    maxCpu: 78.3,
-    currentMemory: 62.8,
-    avgMemory: 58.2,
-    maxMemory: 85.1,
-    currentBandwidth: 350.5,
-    avgBandwidth: 285.3,
-    maxBandwidth: 520.7,
-    healthScore: 92,
-    slaCompliance: true,
-    uptimePercent: 99.98,
-  });
-
   const generateMockHistory = (metric: string) => {
     const points = timeRange === '24h' ? 24 : timeRange === '7d' ? 168 : 48;
     const baseValue = metric === 'cpu' ? 40 : metric === 'memory' ? 60 : 300;
     const variance = metric === 'cpu' ? 20 : metric === 'memory' ? 15 : 150;
-
-    return Array.from({ length: points }, (_, i) => ({
-      timestamp: new Date(Date.now() - (points - i) * 3600000).toISOString(),
-      time: `${i}:00`,
-      value: baseValue + Math.random() * variance - variance / 2,
+    return Array.from({ length: Math.min(points, 24) }, (_, i) => ({
+      time: `${String(i).padStart(2, '0')}:00`,
+      value: parseFloat((baseValue + Math.random() * variance - variance / 2).toFixed(1)),
     }));
   };
 
-  const generateMockInterfaces = () => ([
-    { name: 'GigabitEthernet0/0/0', status: 'up', speed: '1000 Mbps', mtu: 1500, inOctets: 1234567890, outOctets: 987654321 },
-    { name: 'GigabitEthernet0/0/1', status: 'up', speed: '1000 Mbps', mtu: 1500, inOctets: 2345678901, outOctets: 1234567890 },
-    { name: 'GigabitEthernet0/1/0', status: 'down', speed: '1000 Mbps', mtu: 1500, inOctets: 0, outOctets: 0 },
-  ]);
-
-  const generateMockAlerts = () => ([
-    { id: 1, severity: 'warning', message: 'High CPU utilization detected', timestamp: new Date(Date.now() - 3600000).toISOString() },
-    { id: 2, severity: 'info', message: 'Interface GigabitEthernet0/0/1 went up', timestamp: new Date(Date.now() - 7200000).toISOString() },
-    { id: 3, severity: 'critical', message: 'Memory threshold exceeded', timestamp: new Date(Date.now() - 10800000).toISOString() },
-  ]);
-
-  // Format bytes
   const formatBytes = (bytes: number) => {
     if (!bytes) return '0 B';
     const k = 1024;
@@ -235,190 +171,276 @@ export default function DeviceDetails() {
     return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
-  // Get status icon
   const getStatusIcon = (status: string) => {
     if (status === 'online' || status === 'up') return <CheckCircleOutlined style={{ color: '#52c41a' }} />;
     if (status === 'warning') return <ExclamationCircleOutlined style={{ color: '#faad14' }} />;
     return <CloseCircleOutlined style={{ color: '#f5222d' }} />;
   };
 
-  // Interface table columns
+  const getProgressColor = (value: number, thresholds = { warn: 70, crit: 90 }) => {
+    if (value >= thresholds.crit) return '#f5222d';
+    if (value >= thresholds.warn) return '#faad14';
+    return '#52c41a';
+  };
+
   const interfaceColumns: ColumnsType<any> = [
     {
       title: 'Interface',
-      dataIndex: 'name',
-      key: 'name',
-      render: (text: string) => <Text strong>{text}</Text>,
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag icon={getStatusIcon(status)} color={status === 'up' ? 'success' : 'error'}>
-          {status.toUpperCase()}
-        </Tag>
+      dataIndex: 'interfaceName',
+      key: 'interfaceName',
+      render: (text: string, record: any) => (
+        <Space direction="vertical" size={0}>
+          <Text strong>{text || record.name}</Text>
+          {record.macAddress && <Text type="secondary" style={{ fontSize: 11 }}>{record.macAddress}</Text>}
+        </Space>
       ),
     },
     {
-      title: 'Speed',
-      dataIndex: 'speed',
-      key: 'speed',
+      title: 'Status',
+      dataIndex: 'operationalStatus',
+      key: 'operationalStatus',
+      render: (status: string, record: any) => {
+        const s = status || record.status;
+        return (
+          <Tag icon={getStatusIcon(s)} color={s === 'up' ? 'success' : 'error'}>
+            {s?.toUpperCase() || 'UNKNOWN'}
+          </Tag>
+        );
+      },
     },
     {
-      title: 'MTU',
-      dataIndex: 'mtu',
-      key: 'mtu',
+      title: 'Speed',
+      key: 'speed',
+      render: (_, record) => record.speedMbps ? `${record.speedMbps} Mbps` : (record.speed || '-'),
+    },
+    {
+      title: 'IP Address',
+      dataIndex: 'ipAddress',
+      key: 'ipAddress',
+      render: (ip: string) => ip ? <Text code>{ip}</Text> : '-',
     },
     {
       title: 'Input',
-      dataIndex: 'inOctets',
-      key: 'inOctets',
-      render: (bytes: number) => formatBytes(bytes),
+      key: 'input',
+      render: (_, record) => formatBytes(record.inOctets || record.inputOctets || 0),
     },
     {
       title: 'Output',
-      dataIndex: 'outOctets',
-      key: 'outOctets',
-      render: (bytes: number) => formatBytes(bytes),
+      key: 'output',
+      render: (_, record) => formatBytes(record.outOctets || record.outputOctets || 0),
     },
   ];
 
-  if (!device) return null;
+  if (!device && !loading) return null;
+
+  const healthScore = parseFloat(health?.healthScore || '0');
+  const cpu = parseFloat(health?.cpuUtilization || '0');
+  const memory = parseFloat(health?.memoryUtilization || '0');
+  const packetLoss = parseFloat(health?.packetLossPercent || '0');
+  const latency = parseFloat(health?.latencyMs || '0');
+  const responseTime = parseFloat(health?.responseTimeMs || '0');
+  const bwIn = parseFloat(health?.bandwidthInMbps || '0');
+  const bwOut = parseFloat(health?.bandwidthOutMbps || '0');
+  const uptime24h = parseFloat(health?.uptimePercent24h || '0');
+  const uptime7d = parseFloat(health?.uptimePercent7d || '0');
+  const uptime30d = parseFloat(health?.uptimePercent30d || '0');
 
   return (
     <div>
-      {/* Header with Back Button */}
-      <div style={{ marginBottom: '24px' }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-            Back
-          </Button>
-          <Title level={2} style={{ margin: 0 }}>{device.name}</Title>
-          {getStatusIcon(device.status)}
-          <Tag color={device.tier === 1 ? 'red' : 'orange'}>Tier {device.tier}</Tag>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Space align="center">
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Back</Button>
+          <Title level={2} style={{ margin: 0 }}>{device?.name || 'Loading...'}</Title>
+          {device && getStatusIcon(device.status)}
+          {device && <Tag color={device.tier === 1 ? 'red' : device.tier === 2 ? 'orange' : 'blue'}>Tier {device.tier}</Tag>}
+          {health?.slaCompliance === false && <Tag color="error">SLA Breach</Tag>}
         </Space>
       </div>
 
       {/* Device Overview */}
-      <Card title="Device Overview" style={{ marginBottom: '24px' }}>
-        <Descriptions bordered column={2}>
-          <Descriptions.Item label="Name">{device.name}</Descriptions.Item>
-          <Descriptions.Item label="Type">
-            <Tag color="blue">{device.type}</Tag>
-          </Descriptions.Item>
-          <Descriptions.Item label="IP Address">
-            <Text code>{device.ip}</Text>
-          </Descriptions.Item>
+      <Card title="Device Overview" style={{ marginBottom: 24 }}>
+        <Descriptions bordered column={{ xs: 1, sm: 2, lg: 3 }}>
+          <Descriptions.Item label="Name">{device?.name}</Descriptions.Item>
+          <Descriptions.Item label="Type"><Tag color="blue">{device?.type}</Tag></Descriptions.Item>
+          <Descriptions.Item label="IP Address"><Text code>{device?.ip}</Text></Descriptions.Item>
           <Descriptions.Item label="Status">
-            <Tag icon={getStatusIcon(device.status)} color={device.status === 'online' ? 'success' : 'error'}>
-              {device.status?.toUpperCase()}
+            <Tag icon={getStatusIcon(device?.status || '')} color={device?.status === 'online' ? 'success' : 'error'}>
+              {device?.status?.toUpperCase()}
             </Tag>
           </Descriptions.Item>
-          <Descriptions.Item label="Location">{device.location}</Descriptions.Item>
-          <Descriptions.Item label="Tier">Tier {device.tier}</Descriptions.Item>
-          <Descriptions.Item label="Vendor">{device.vendor}</Descriptions.Item>
-          <Descriptions.Item label="Model">{device.model}</Descriptions.Item>
-          <Descriptions.Item label="Serial Number">{device.serialNumber}</Descriptions.Item>
-          <Descriptions.Item label="Firmware">{device.firmwareVersion}</Descriptions.Item>
-          <Descriptions.Item label="Uptime">{device.uptime}</Descriptions.Item>
-          <Descriptions.Item label="Last Seen">
-            {new Date(device.lastSeen).toLocaleString()}
+          <Descriptions.Item label="Location">{device?.location}</Descriptions.Item>
+          <Descriptions.Item label="Vendor / Model">{device?.vendor} {device?.model}</Descriptions.Item>
+          <Descriptions.Item label="OS / Firmware">{device?.metadata?.os || 'N/A'}</Descriptions.Item>
+          <Descriptions.Item label="Last Health Check">
+            {health?.lastHealthCheck ? new Date(health.lastHealthCheck).toLocaleString() : 'N/A'}
+          </Descriptions.Item>
+          <Descriptions.Item label="Monitoring">
+            <Tag color={device?.monitoringEnabled ? 'green' : 'default'}>
+              {device?.monitoringEnabled ? 'Enabled' : 'Disabled'}
+            </Tag>
           </Descriptions.Item>
         </Descriptions>
       </Card>
 
       {/* Performance Summary Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title="Health Score"
-              value={performanceSummary?.healthScore || 0}
+              value={healthScore}
               suffix="/ 100"
               prefix={<DashboardOutlined />}
-              valueStyle={{ color: performanceSummary?.healthScore >= 80 ? '#52c41a' : '#faad14' }}
+              valueStyle={{ color: getProgressColor(healthScore, { warn: 60, crit: 40 }) }}
             />
-            <Progress
-              percent={performanceSummary?.healthScore || 0}
-              strokeColor={performanceSummary?.healthScore >= 80 ? '#52c41a' : '#faad14'}
-              showInfo={false}
-            />
+            <Progress percent={healthScore} strokeColor={getProgressColor(healthScore, { warn: 60, crit: 40 })} showInfo={false} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic
-              title="CPU Usage"
-              value={performanceSummary?.currentCpu || 0}
-              suffix="%"
-              prefix={<ThunderboltOutlined />}
-              valueStyle={{ color: '#1890ff' }}
-            />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              Avg: {performanceSummary?.avgCpu?.toFixed(1) || 0}% | Max: {performanceSummary?.maxCpu?.toFixed(1) || 0}%
-            </Text>
+            <Statistic title="CPU Usage" value={cpu} suffix="%" prefix={<ThunderboltOutlined />} valueStyle={{ color: getProgressColor(cpu) }} />
+            <Progress percent={cpu} strokeColor={getProgressColor(cpu)} showInfo={false} size="small" />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic
-              title="Memory Usage"
-              value={performanceSummary?.currentMemory || 0}
-              suffix="%"
-              valueStyle={{ color: '#52c41a' }}
-            />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              Avg: {performanceSummary?.avgMemory?.toFixed(1) || 0}% | Max: {performanceSummary?.maxMemory?.toFixed(1) || 0}%
-            </Text>
+            <Statistic title="Memory Usage" value={memory} suffix="%" valueStyle={{ color: getProgressColor(memory) }} />
+            <Progress percent={memory} strokeColor={getProgressColor(memory)} showInfo={false} size="small" />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card>
-            <Statistic
-              title="Bandwidth"
-              value={performanceSummary?.currentBandwidth || 0}
-              suffix="Mbps"
-              valueStyle={{ color: '#faad14' }}
-            />
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              Avg: {performanceSummary?.avgBandwidth?.toFixed(1) || 0} Mbps
-            </Text>
+            <Statistic title="Bandwidth" value={bwIn + bwOut} suffix="Mbps" prefix={<SwapOutlined />} valueStyle={{ color: '#1890ff' }} />
+            <Text type="secondary" style={{ fontSize: 12 }}>In: {bwIn.toFixed(1)} | Out: {bwOut.toFixed(1)} Mbps</Text>
           </Card>
         </Col>
       </Row>
 
+      {/* Network Telemetry Section */}
+      <Card title={<><ApiOutlined /> Network Telemetry</>} style={{ marginBottom: 24 }}>
+        <Row gutter={[24, 16]}>
+          <Col xs={12} sm={8} lg={4}>
+            <div style={{ textAlign: 'center' }}>
+              <Progress
+                type="dashboard"
+                percent={Math.min(packetLoss * 10, 100)}
+                format={() => `${packetLoss.toFixed(2)}%`}
+                strokeColor={packetLoss > 5 ? '#f5222d' : packetLoss > 2 ? '#faad14' : '#52c41a'}
+                size={100}
+              />
+              <div style={{ marginTop: 8 }}><Text strong>Packet Loss</Text></div>
+            </div>
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <div style={{ textAlign: 'center' }}>
+              <Progress
+                type="dashboard"
+                percent={Math.min(latency / 5, 100)}
+                format={() => `${latency.toFixed(1)}ms`}
+                strokeColor={latency > 200 ? '#f5222d' : latency > 100 ? '#faad14' : '#52c41a'}
+                size={100}
+              />
+              <div style={{ marginTop: 8 }}><Text strong>Latency</Text></div>
+            </div>
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <div style={{ textAlign: 'center' }}>
+              <Progress
+                type="dashboard"
+                percent={Math.min(responseTime / 10, 100)}
+                format={() => `${responseTime.toFixed(0)}ms`}
+                strokeColor={responseTime > 500 ? '#f5222d' : responseTime > 200 ? '#faad14' : '#52c41a'}
+                size={100}
+              />
+              <div style={{ marginTop: 8 }}><Text strong>Response Time</Text></div>
+            </div>
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <div style={{ textAlign: 'center' }}>
+              <Statistic
+                title="Interfaces"
+                value={health?.interfacesUp || 0}
+                suffix={`/ ${health?.totalInterfaces || 0}`}
+                valueStyle={{ color: '#52c41a', fontSize: 24 }}
+              />
+              <Text type="secondary">{health?.interfacesDown || 0} down</Text>
+            </div>
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <div style={{ textAlign: 'center' }}>
+              <Statistic
+                title={<><WarningOutlined /> Active Alerts</>}
+                value={health?.activeAlertsCount || 0}
+                valueStyle={{ color: (health?.criticalAlertsCount || 0) > 0 ? '#f5222d' : '#52c41a', fontSize: 24 }}
+              />
+              <Text type="secondary">
+                {health?.criticalAlertsCount || 0} critical, {health?.warningAlertsCount || 0} warning
+              </Text>
+            </div>
+          </Col>
+          <Col xs={12} sm={8} lg={4}>
+            <div style={{ textAlign: 'center' }}>
+              <Statistic
+                title="SLA Status"
+                value={health?.slaCompliance ? 'Compliant' : 'Breached'}
+                valueStyle={{ color: health?.slaCompliance ? '#52c41a' : '#f5222d', fontSize: 20 }}
+              />
+              <Text type="secondary">Target: {health?.slaTargetPercent || 99.9}%</Text>
+            </div>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* Uptime Timeline */}
+      <Card title={<><ClockCircleOutlined /> Uptime Overview</>} style={{ marginBottom: 24 }}>
+        <Row gutter={[24, 16]}>
+          <Col xs={24} sm={8}>
+            <Statistic title="24 Hour Uptime" value={uptime24h} suffix="%" valueStyle={{ color: uptime24h >= 99.9 ? '#52c41a' : uptime24h >= 99 ? '#faad14' : '#f5222d' }} />
+            <Progress percent={uptime24h} strokeColor={uptime24h >= 99.9 ? '#52c41a' : '#faad14'} showInfo={false} size="small" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <Statistic title="7 Day Uptime" value={uptime7d} suffix="%" valueStyle={{ color: uptime7d >= 99.9 ? '#52c41a' : uptime7d >= 99 ? '#faad14' : '#f5222d' }} />
+            <Progress percent={uptime7d} strokeColor={uptime7d >= 99.9 ? '#52c41a' : '#faad14'} showInfo={false} size="small" />
+          </Col>
+          <Col xs={24} sm={8}>
+            <Statistic title="30 Day Uptime" value={uptime30d} suffix="%" valueStyle={{ color: uptime30d >= 99.9 ? '#52c41a' : uptime30d >= 99 ? '#faad14' : '#f5222d' }} />
+            <Progress percent={uptime30d} strokeColor={uptime30d >= 99.9 ? '#52c41a' : '#faad14'} showInfo={false} size="small" />
+          </Col>
+        </Row>
+      </Card>
+
       {/* Time Range Filter */}
-      <Card style={{ marginBottom: '16px' }}>
+      <Card style={{ marginBottom: 16 }}>
         <Space>
+          <Text strong>Time Range:</Text>
           <Select value={timeRange} onChange={setTimeRange} style={{ width: 150 }}>
+            <Option value="1h">Last 1 Hour</Option>
             <Option value="24h">Last 24 Hours</Option>
             <Option value="7d">Last 7 Days</Option>
             <Option value="30d">Last 30 Days</Option>
           </Select>
-          <Button icon={<ReloadOutlined />} onClick={fetchDeviceDetails} loading={loading}>
-            Refresh
-          </Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchDeviceDetails} loading={loading}>Refresh</Button>
         </Space>
       </Card>
 
       {/* Performance Charts */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={12}>
           <Card title={<><LineChartOutlined /> CPU Utilization</>}>
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={cpuHistory}>
                 <defs>
-                  <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorCpuDetail" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#1890ff" stopOpacity={0.8}/>
                     <stop offset="95%" stopColor="#1890ff" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis label={{ value: 'CPU %', angle: -90, position: 'insideLeft' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="time" stroke="#8ba3c1" />
+                <YAxis stroke="#8ba3c1" domain={[0, 100]} />
                 <RechartsTooltip />
-                <Area type="monotone" dataKey="value" stroke="#1890ff" fillOpacity={1} fill="url(#colorCpu)" name="CPU %" />
+                <Area type="monotone" dataKey="value" stroke="#1890ff" fillOpacity={1} fill="url(#colorCpuDetail)" name="CPU %" />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
@@ -428,16 +450,16 @@ export default function DeviceDetails() {
             <ResponsiveContainer width="100%" height={250}>
               <AreaChart data={memoryHistory}>
                 <defs>
-                  <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorMemDetail" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#52c41a" stopOpacity={0.8}/>
                     <stop offset="95%" stopColor="#52c41a" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis label={{ value: 'Memory %', angle: -90, position: 'insideLeft' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="time" stroke="#8ba3c1" />
+                <YAxis stroke="#8ba3c1" domain={[0, 100]} />
                 <RechartsTooltip />
-                <Area type="monotone" dataKey="value" stroke="#52c41a" fillOpacity={1} fill="url(#colorMemory)" name="Memory %" />
+                <Area type="monotone" dataKey="value" stroke="#52c41a" fillOpacity={1} fill="url(#colorMemDetail)" name="Memory %" />
               </AreaChart>
             </ResponsiveContainer>
           </Card>
@@ -446,47 +468,27 @@ export default function DeviceDetails() {
           <Card title={<><LineChartOutlined /> Bandwidth Usage</>}>
             <ResponsiveContainer width="100%" height={250}>
               <LineChart data={bandwidthHistory}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="time" />
-                <YAxis label={{ value: 'Bandwidth (Mbps)', angle: -90, position: 'insideLeft' }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="time" stroke="#8ba3c1" />
+                <YAxis stroke="#8ba3c1" />
                 <RechartsTooltip />
                 <Legend />
-                <Line type="monotone" dataKey="value" stroke="#faad14" strokeWidth={2} name="Bandwidth (Mbps)" />
+                <Line type="monotone" dataKey="value" stroke="#faad14" strokeWidth={2} name="Bandwidth (Mbps)" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
 
-      {/* Tabs for Interfaces and Alerts */}
-      <Card>
-        <Tabs defaultActiveKey="interfaces">
-          <TabPane tab={<><WifiOutlined /> Interfaces ({interfaces.length})</>} key="interfaces">
-            <Table
-              columns={interfaceColumns}
-              dataSource={interfaces}
-              rowKey="name"
-              pagination={false}
-            />
-          </TabPane>
-          <TabPane tab={<><HistoryOutlined /> Recent Alerts ({alerts.length})</>} key="alerts">
-            <Timeline>
-              {alerts.map((alert) => (
-                <Timeline.Item
-                  key={alert.id}
-                  color={alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'orange' : 'blue'}
-                >
-                  <Text strong>{new Date(alert.timestamp).toLocaleString()}</Text>
-                  <br />
-                  <Tag color={alert.severity === 'critical' ? 'red' : alert.severity === 'warning' ? 'orange' : 'blue'}>
-                    {alert.severity.toUpperCase()}
-                  </Tag>
-                  {' '}{alert.message}
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </TabPane>
-        </Tabs>
+      {/* Interfaces Table */}
+      <Card title={<><WifiOutlined /> Interfaces ({interfaces.length})</>}>
+        <Table
+          columns={interfaceColumns}
+          dataSource={interfaces}
+          rowKey={(record) => record.id || record.interfaceName || record.name}
+          pagination={false}
+          size="small"
+        />
       </Card>
     </div>
   );

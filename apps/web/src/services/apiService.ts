@@ -134,6 +134,34 @@ class ApiService {
     return response.data;
   }
 
+  async getTopSourceIPs(limit: number = 10, timeRange: string = '1h') {
+    const response = await this.api.get(
+      `/api/v1/monitoring/top-talkers/source-ips?limit=${limit}&timeRange=${timeRange}`
+    );
+    return response.data;
+  }
+
+  async getTopDestinationIPs(limit: number = 10, timeRange: string = '1h') {
+    const response = await this.api.get(
+      `/api/v1/monitoring/top-talkers/destination-ips?limit=${limit}&timeRange=${timeRange}`
+    );
+    return response.data;
+  }
+
+  async getTopApplications(limit: number = 10, timeRange: string = '1h') {
+    const response = await this.api.get(
+      `/api/v1/monitoring/top-talkers/applications?limit=${limit}&timeRange=${timeRange}`
+    );
+    return response.data;
+  }
+
+  async getTopConversations(limit: number = 10, timeRange: string = '1h') {
+    const response = await this.api.get(
+      `/api/v1/monitoring/top-talkers/conversations?limit=${limit}&timeRange=${timeRange}`
+    );
+    return response.data;
+  }
+
   // Reports APIs
   async generateSLAReport(params: {
     startDate: string;
@@ -157,6 +185,154 @@ class ApiService {
 
   async getReportHistory(limit: number = 50) {
     const response = await this.api.get(`/api/v1/reporting/reports/history?limit=${limit}`);
+    return response.data;
+  }
+
+  // Dashboard - Devices by Status
+  async getDevicesByStatus(status: string) {
+    const response = await this.api.get(`/api/v1/monitoring/dashboard/devices-by-status?status=${status}`);
+    return response.data;
+  }
+
+  // Masters — Devices APIs
+  async getDevices(filters?: { type?: string; location?: string; vendor?: string; tier?: number; search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.type) params.append('type', filters.type);
+    if (filters?.location) params.append('location', filters.location);
+    if (filters?.vendor) params.append('vendor', filters.vendor);
+    if (filters?.tier) params.append('tier', filters.tier.toString());
+    if (filters?.search) params.append('search', filters.search);
+    const response = await this.api.get(`/api/v1/masters/devices?${params.toString()}`);
+    return response.data;
+  }
+
+  async getDeviceStats() {
+    const response = await this.api.get('/api/v1/masters/devices/stats/overview');
+    return response.data;
+  }
+
+  async createDevice(data: any) {
+    const response = await this.api.post('/api/v1/masters/devices', data);
+    return response.data;
+  }
+
+  async updateDevice(id: string, data: any) {
+    const response = await this.api.put(`/api/v1/masters/devices/${id}`, data);
+    return response.data;
+  }
+
+  async deleteDevice(id: string) {
+    const response = await this.api.delete(`/api/v1/masters/devices/${id}`);
+    return response.data;
+  }
+
+  async toggleDeviceMonitoring(id: string, enabled: boolean) {
+    const response = await this.api.post(`/api/v1/masters/devices/${id}/toggle-monitoring`, { enabled });
+    return response.data;
+  }
+
+  async bulkUploadDevices(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.api.post('/api/v1/masters/devices/bulk-upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  // Masters — Customers APIs
+  async getCustomers(filters?: { customerType?: string; isActive?: string; search?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.customerType) params.append('customer_type', filters.customerType);
+    if (filters?.isActive) params.append('is_active', filters.isActive);
+    if (filters?.search) params.append('search', filters.search);
+    const response = await this.api.get(`/api/v1/masters/customers?${params.toString()}`);
+    return response.data;
+  }
+
+  async getCustomerStats() {
+    const response = await this.api.get('/api/v1/masters/customers/stats/overview');
+    return response.data;
+  }
+
+  async createCustomer(data: any) {
+    const response = await this.api.post('/api/v1/masters/customers', data);
+    return response.data;
+  }
+
+  async updateCustomer(id: number, data: any) {
+    const response = await this.api.put(`/api/v1/masters/customers/${id}`, data);
+    return response.data;
+  }
+
+  async deleteCustomer(id: number) {
+    const response = await this.api.delete(`/api/v1/masters/customers/${id}`);
+    return response.data;
+  }
+
+  async getHeadOffices() {
+    const response = await this.api.get('/api/v1/masters/customers/list/head-offices');
+    return response.data;
+  }
+
+  // Masters — Thresholds APIs
+  async getThresholds() {
+    const response = await this.api.get('/api/v1/masters/thresholds');
+    return response.data;
+  }
+
+  // Reports — Performance & Traffic
+  async generatePerformanceReport(params: {
+    startDate: string;
+    endDate: string;
+    tier?: number;
+    location?: string;
+    deviceType?: string;
+  }) {
+    const response = await this.api.post('/api/v1/reporting/reports/performance', params);
+    return response.data;
+  }
+
+  async generateTrafficReport(params: {
+    startDate: string;
+    endDate: string;
+    tier?: number;
+    location?: string;
+    deviceType?: string;
+  }) {
+    const response = await this.api.post('/api/v1/reporting/reports/traffic', params);
+    return response.data;
+  }
+
+  // Discovery — Network Scan APIs
+  async startNetworkScan(params: {
+    startIp: string;
+    endIp: string;
+    subnet?: string;
+    snmpCommunity?: string;
+    timeout?: number;
+  }) {
+    const response = await this.api.post('/api/v1/masters/discovery/scan', params);
+    return response.data;
+  }
+
+  async getScanStatus(scanId: string) {
+    const response = await this.api.get(`/api/v1/masters/discovery/scan/${scanId}/status`);
+    return response.data;
+  }
+
+  async getScanResults(scanId: string) {
+    const response = await this.api.get(`/api/v1/masters/discovery/scan/${scanId}/results`);
+    return response.data;
+  }
+
+  async importDiscoveredDevices(scanId: string, data: {
+    deviceIPs: string[];
+    tier?: number;
+    location?: string;
+    customerId?: number;
+  }) {
+    const response = await this.api.post(`/api/v1/masters/discovery/scan/${scanId}/import`, data);
     return response.data;
   }
 

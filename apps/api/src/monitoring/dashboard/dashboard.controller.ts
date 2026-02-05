@@ -56,6 +56,22 @@ export class DashboardController {
   }
 
   /**
+   * Get devices filtered by status
+   * GET /api/v1/monitoring/dashboard/devices-by-status?status=online
+   */
+  @Get('devices-by-status')
+  @Permissions('dashboard:read')
+  @UseGuards(RbacGuard)
+  async getDevicesByStatus(@Query('status') status: string) {
+    const devices = await this.dashboardService.getDevicesByStatus(status);
+    return {
+      success: true,
+      data: devices,
+      count: devices.length,
+    };
+  }
+
+  /**
    * Get device health details
    * GET /api/v1/monitoring/dashboard/device/:id/health
    */

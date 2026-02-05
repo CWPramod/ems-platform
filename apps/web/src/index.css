@@ -1,3 +1,76 @@
+/* Google Fonts — Inter for professional typography */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Dark theme base styles */
+body {
+  background: #0a1628;
+  color: #e6edf5;
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #071222;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e3a5f;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2a5080;
+}
+
+/* Ant Design overrides for dark cards with hover glow */
+.ant-card {
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.ant-card:hover {
+  border-color: rgba(30, 136, 229, 0.3);
+  box-shadow: 0 0 20px rgba(30, 136, 229, 0.08);
+}
+
+/* Recharts tooltip dark override */
+.recharts-default-tooltip {
+  background: #162d4a !important;
+  border: 1px solid #1e3a5f !important;
+  border-radius: 8px !important;
+}
+.recharts-tooltip-label {
+  color: #e6edf5 !important;
+}
+.recharts-tooltip-item {
+  color: #8ba3c1 !important;
+}
+
+/* ReactFlow dark theme override */
+.react-flow__background {
+  background: #0a1628 !important;
+}
+.react-flow__minimap {
+  background: #0f2035 !important;
+  border: 1px solid #1e3a5f !important;
+  border-radius: 8px !important;
+}
+.react-flow__controls {
+  border: 1px solid #1e3a5f !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: #162d4a !important;
+  border-bottom: 1px solid #1e3a5f !important;
+  fill: #8ba3c1 !important;
+}
+.react-flow__controls-button:hover {
+  background: #1e3a5f !important;
+}

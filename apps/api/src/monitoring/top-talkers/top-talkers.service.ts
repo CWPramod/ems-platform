@@ -312,6 +312,143 @@ export class TopTalkersService {
   }
 
   /**
+   * Get top source IPs (top senders)
+   */
+  async getTopSourceIPs(
+    limit: number = 10,
+    timeRange: '1h' | '24h' | '7d' = '1h'
+  ): Promise<any> {
+    const startTime = this.getStartTime(timeRange);
+
+    const query = this.trafficRepo
+      .createQueryBuilder('tf')
+      .select('tf.sourceIp', 'sourceIp')
+      .addSelect('SUM(tf.bytesOut)', 'totalBytesSent')
+      .addSelect('SUM(tf.packetsOut)', 'totalPacketsSent')
+      .addSelect('COUNT(*)', 'flowCount')
+      .addSelect('COUNT(DISTINCT tf.destinationIp)', 'uniqueDestinations')
+      .addSelect('COUNT(DISTINCT tf.protocol)', 'protocolCount')
+      .where('tf.timestamp >= :startTime', { startTime })
+      .groupBy('tf.sourceIp')
+      .orderBy('SUM(tf.bytesOut)', 'DESC')
+      .limit(limit);
+
+    const results = await query.getRawMany();
+    const total = results.reduce((sum, r) => sum + parseInt(r.totalBytesSent || '0'), 0);
+
+    return {
+      timeRange,
+      sourceIPs: results.map(r => ({
+        ip: r.sourceIp,
+        totalBytesSent: parseInt(r.totalBytesSent || '0'),
+        totalGB: (parseInt(r.totalBytesSent || '0') / (1024 * 1024 * 1024)).toFixed(2),
+        totalPacketsSent: parseInt(r.totalPacketsSent || '0'),
+        flowCount: parseInt(r.flowCount || '0'),
+        uniqueDestinations: parseInt(r.uniqueDestinations || '0'),
+        protocolCount: parseInt(r.protocolCount || '0'),
+        percentage: total > 0 ? ((parseInt(r.totalBytesSent || '0') / total) * 100).toFixed(2) : '0',
+      })),
+      count: results.length,
+    };
+  }
+
+  /**
+   * Get top destination IPs (top receivers)
+   */
+  async getTopDestinationIPs(
+    limit: number = 10,
+    timeRange: '1h' | '24h' | '7d' = '1h'
+  ): Promise<any> {
+    const startTime = this.getStartTime(timeRange);
+
+    const query = this.trafficRepo
+      .createQueryBuilder('tf')
+      .select('tf.destinationIp', 'destinationIp')
+      .addSelect('SUM(tf.bytesIn)', 'totalBytesReceived')
+      .addSelect('SUM(tf.packetsIn)', 'totalPacketsReceived')
+      .addSelect('COUNT(*)', 'flowCount')
+      .addSelect('COUNT(DISTINCT tf.sourceIp)', 'uniqueSources')
+      .addSelect('COUNT(DISTINCT tf.protocol)', 'protocolCount')
+      .where('tf.timestamp >= :startTime', { startTime })
+      .groupBy('tf.destinationIp')
+      .orderBy('SUM(tf.bytesIn)', 'DESC')
+      .limit(limit);
+
+    const results = await query.getRawMany();
+    const total = results.reduce((sum, r) => sum + parseInt(r.totalBytesReceived || '0'), 0);
+
+    return {
+      timeRange,
+      destinationIPs: results.map(r => ({
+        ip: r.destinationIp,
+        totalBytesReceived: parseInt(r.totalBytesReceived || '0'),
+        totalGB: (parseInt(r.totalBytesReceived || '0') / (1024 * 1024 * 1024)).toFixed(2),
+        totalPacketsReceived: parseInt(r.totalPacketsReceived || '0'),
+        flowCount: parseInt(r.flowCount || '0'),
+        uniqueSources: parseInt(r.uniqueSources || '0'),
+        protocolCount: parseInt(r.protocolCount || '0'),
+        percentage: total > 0 ? ((parseInt(r.totalBytesReceived || '0') / total) * 100).toFixed(2) : '0',
+      })),
+      count: results.length,
+    };
+  }
+
+  /**
+   * Get top applications (by destination port mapping)
+   */
+  async getTopApplications(
+    limit: number = 10,
+    timeRange: '1h' | '24h' | '7d' = '1h'
+  ): Promise<any> {
+    const startTime = this.getStartTime(timeRange);
+
+    const query = this.trafficRepo
+      .createQueryBuilder('tf')
+      .select('tf.destinationPort', 'port')
+      .addSelect('tf.protocol', 'protocol')
+      .addSelect('SUM(tf.bytesIn + tf.bytesOut)', 'totalBytes')
+      .addSelect('SUM(tf.packetsIn + tf.packetsOut)', 'totalPackets')
+      .addSelect('COUNT(*)', 'flowCount')
+      .addSelect('COUNT(DISTINCT tf.assetId)', 'deviceCount')
+      .where('tf.timestamp >= :startTime', { startTime })
+      .andWhere('tf.destinationPort IS NOT NULL')
+      .groupBy('tf.destinationPort, tf.protocol')
+      .orderBy('SUM(tf.bytesIn + tf.bytesOut)', 'DESC')
+      .limit(limit);
+
+    const results = await query.getRawMany();
+    const total = results.reduce((sum, r) => sum + parseInt(r.totalBytes || '0'), 0);
+
+    // Port-to-application mapping
+    const portMap: Record<number, string> = {
+      80: 'HTTP', 443: 'HTTPS', 22: 'SSH', 53: 'DNS', 21: 'FTP',
+      25: 'SMTP', 110: 'POP3', 143: 'IMAP', 3306: 'MySQL', 5432: 'PostgreSQL',
+      6379: 'Redis', 27017: 'MongoDB', 8080: 'HTTP-Alt', 8443: 'HTTPS-Alt',
+      3389: 'RDP', 161: 'SNMP', 162: 'SNMP-Trap', 514: 'Syslog',
+      123: 'NTP', 67: 'DHCP', 68: 'DHCP', 69: 'TFTP', 389: 'LDAP',
+    };
+
+    return {
+      timeRange,
+      applications: results.map(r => {
+        const port = parseInt(r.port);
+        return {
+          port,
+          protocol: r.protocol,
+          application: portMap[port] || `Port-${port}`,
+          totalBytes: parseInt(r.totalBytes || '0'),
+          totalGB: (parseInt(r.totalBytes || '0') / (1024 * 1024 * 1024)).toFixed(2),
+          totalPackets: parseInt(r.totalPackets || '0'),
+          flowCount: parseInt(r.flowCount || '0'),
+          deviceCount: parseInt(r.deviceCount || '0'),
+          percentage: total > 0 ? ((parseInt(r.totalBytes || '0') / total) * 100).toFixed(2) : '0',
+        };
+      }),
+      count: results.length,
+    };
+  }
+
+  /**
    * Get start time based on time range
    */
   private getStartTime(timeRange: string): Date {

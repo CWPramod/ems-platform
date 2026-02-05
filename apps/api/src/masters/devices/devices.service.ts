@@ -305,6 +305,55 @@ return Array.isArray(saved) ? saved[0] : saved;
   }
 
   /**
+   * Bulk create devices from parsed rows
+   */
+  async bulkCreate(
+    devices: CreateDeviceDto[],
+  ): Promise<{ created: number; errors: { row: number; error: string }[] }> {
+    const errors: { row: number; error: string }[] = [];
+    let created = 0;
+
+    for (let i = 0; i < devices.length; i++) {
+      try {
+        const dto = devices[i];
+        if (!dto.name || !dto.type || !dto.ip || !dto.location || !dto.vendor || !dto.owner) {
+          errors.push({ row: i + 1, error: 'Missing required fields (name, type, ip, location, vendor, owner)' });
+          continue;
+        }
+
+        const existing = await this.assetRepo.findOne({ where: { ip: dto.ip } });
+        if (existing) {
+          errors.push({ row: i + 1, error: `Device with IP ${dto.ip} already exists` });
+          continue;
+        }
+
+        const device = this.assetRepo.create({
+          name: dto.name,
+          type: dto.type,
+          ip: dto.ip,
+          location: dto.location,
+          region: dto.region,
+          vendor: dto.vendor,
+          model: dto.model,
+          tags: dto.tags || [],
+          tier: dto.tier || 3,
+          owner: dto.owner,
+          department: dto.department,
+          monitoringEnabled: dto.monitoringEnabled !== false,
+          metadata: dto.metadata || {},
+        });
+
+        await this.assetRepo.save(device);
+        created++;
+      } catch (err) {
+        errors.push({ row: i + 1, error: err.message || 'Unknown error' });
+      }
+    }
+
+    return { created, errors };
+  }
+
+  /**
    * Toggle monitoring for device
    */
   async toggleMonitoring(id: string, enabled: boolean): Promise<Asset | null> {

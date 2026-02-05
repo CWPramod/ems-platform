@@ -53,7 +53,9 @@ export class AlertsService {
     limit?: number;
     offset?: number;
   }): Promise<{ data: Alert[]; total: number }> {
-    const queryBuilder = this.alertsRepository.createQueryBuilder('alert');
+    const queryBuilder = this.alertsRepository.createQueryBuilder('alert')
+      .leftJoinAndSelect('alert.event', 'event')
+      .leftJoinAndSelect('event.asset', 'asset');
 
     if (filters?.status) {
       queryBuilder.andWhere('alert.status = :status', { status: filters.status });

@@ -8,6 +8,7 @@ import { Repository, Between, MoreThanOrEqual } from 'typeorm';
 import { Asset } from '../../entities/asset.entity';
 import { DeviceHealth } from '../../entities/device-health.entity';
 import { DeviceMetricsHistory } from '../../entities/device-metrics-history.entity';
+import { TrafficFlow } from '../../entities/traffic-flow.entity';
 import { ReportDefinition } from '../../entities/report-definition.entity';
 import { ReportHistory } from '../../entities/report-history.entity';
 
@@ -29,6 +30,8 @@ export class ReportsService {
     private healthRepo: Repository<DeviceHealth>,
     @InjectRepository(DeviceMetricsHistory)
     private metricsRepo: Repository<DeviceMetricsHistory>,
+    @InjectRepository(TrafficFlow)
+    private trafficRepo: Repository<TrafficFlow>,
     @InjectRepository(ReportDefinition)
     private reportDefRepo: Repository<ReportDefinition>,
     @InjectRepository(ReportHistory)
@@ -172,6 +175,70 @@ export class ReportsService {
       parameters: params,
       data: performanceData,
       rowCount: performanceData.length,
+    };
+  }
+
+  /**
+   * Generate Traffic Report
+   */
+  async generateTrafficReport(params: ReportParams): Promise<any> {
+    const devices = await this.getFilteredDevices(params);
+
+    const trafficData = await Promise.all(
+      devices.map(async (device) => {
+        const flows = await this.trafficRepo
+          .createQueryBuilder('tf')
+          .select('SUM(tf.bytesIn)', 'bytesIn')
+          .addSelect('SUM(tf.bytesOut)', 'bytesOut')
+          .addSelect('SUM(tf.packetsIn)', 'packetsIn')
+          .addSelect('SUM(tf.packetsOut)', 'packetsOut')
+          .addSelect('COUNT(*)', 'flowCount')
+          .addSelect('COUNT(DISTINCT tf.protocol)', 'protocolCount')
+          .where('tf.assetId = :assetId', { assetId: device.id })
+          .andWhere('tf.timestamp BETWEEN :start AND :end', {
+            start: params.startDate,
+            end: params.endDate,
+          })
+          .getRawOne();
+
+        const totalBytes = parseInt(flows?.bytesIn || '0') + parseInt(flows?.bytesOut || '0');
+
+        return {
+          deviceId: device.id,
+          deviceName: device.name,
+          deviceType: device.type,
+          location: device.location,
+          tier: device.tier,
+          traffic: {
+            bytesIn: parseInt(flows?.bytesIn || '0'),
+            bytesOut: parseInt(flows?.bytesOut || '0'),
+            totalBytes,
+            totalGB: (totalBytes / (1024 * 1024 * 1024)).toFixed(2),
+            packetsIn: parseInt(flows?.packetsIn || '0'),
+            packetsOut: parseInt(flows?.packetsOut || '0'),
+            flowCount: parseInt(flows?.flowCount || '0'),
+            protocolCount: parseInt(flows?.protocolCount || '0'),
+          },
+        };
+      })
+    );
+
+    // Calculate summary
+    const summary = {
+      totalDevices: trafficData.length,
+      totalBytesIn: trafficData.reduce((sum, d) => sum + d.traffic.bytesIn, 0),
+      totalBytesOut: trafficData.reduce((sum, d) => sum + d.traffic.bytesOut, 0),
+      totalBytes: trafficData.reduce((sum, d) => sum + d.traffic.totalBytes, 0),
+      totalFlows: trafficData.reduce((sum, d) => sum + d.traffic.flowCount, 0),
+    };
+
+    return {
+      reportType: 'traffic',
+      generatedAt: new Date(),
+      parameters: params,
+      summary,
+      data: trafficData,
+      rowCount: trafficData.length,
     };
   }
 

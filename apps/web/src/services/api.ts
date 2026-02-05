@@ -156,9 +156,11 @@ export const eventsAPI = {
 export const alertsAPI = {
   getAll: async (params?: {
     status?: string;
-    severity?: string;
-    sortBy?: string;
-    order?: string;
+    owner?: string;
+    team?: string;
+    slaBreached?: string;
+    limit?: number;
+    offset?: number;
   }): Promise<PaginatedResponse<Alert>> => {
     const response = await nestAPI.get('/alerts', { params });
     return response.data;
@@ -169,13 +171,18 @@ export const alertsAPI = {
     return response.data;
   },
 
-  acknowledge: async (id: string): Promise<Alert> => {
-    const response = await nestAPI.post(`/alerts/${id}/acknowledge`);
+  acknowledge: async (id: string, owner: string): Promise<Alert> => {
+    const response = await nestAPI.post(`/alerts/${id}/acknowledge`, { owner });
     return response.data;
   },
 
-  resolve: async (id: string, resolution?: string): Promise<Alert> => {
-    const response = await nestAPI.post(`/alerts/${id}/resolve`, { resolution });
+  resolve: async (id: string, data?: { resolutionNotes?: string; resolutionCategory?: string }): Promise<Alert> => {
+    const response = await nestAPI.post(`/alerts/${id}/resolve`, data);
+    return response.data;
+  },
+
+  close: async (id: string): Promise<Alert> => {
+    const response = await nestAPI.post(`/alerts/${id}/close`);
     return response.data;
   },
 };

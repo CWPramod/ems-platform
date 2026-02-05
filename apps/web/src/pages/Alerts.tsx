@@ -1,369 +1,771 @@
-import { useState, useEffect } from 'react';
-import { alertsAPI, mlAPI } from '../services/api';
+import { useState, useEffect, useCallback } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  Tag,
+  Space,
+  Button,
+  Select,
+  Typography,
+  Badge,
+  Tooltip,
+  Modal,
+  Descriptions,
+  message,
+  Input,
+} from 'antd';
+import {
+  AlertOutlined,
+  ExclamationCircleOutlined,
+  CloseCircleOutlined,
+  CheckCircleOutlined,
+  SyncOutlined,
+  WarningOutlined,
+  FireOutlined,
+  ClockCircleOutlined,
+  UserOutlined,
+  DollarOutlined,
+  LinkOutlined,
+  EnvironmentOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
+import { useNavigate } from 'react-router-dom';
+import { alertsAPI } from '../services/api';
 import type { Alert } from '../types';
 
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+
+// Extended alert type to include nested event.asset from API response
+interface AlertWithAsset extends Alert {
+  event?: Alert['event'] & {
+    asset?: {
+      id: string;
+      name: string;
+      type: string;
+      ip: string;
+      location: string;
+      tier: number;
+      status: string;
+    };
+  };
+}
+
+const SEVERITY_TAG_COLORS: Record<string, string> = {
+  critical: 'red',
+  warning: 'orange',
+  info: 'blue',
+};
+
+const STATUS_TAG_COLORS: Record<string, string> = {
+  open: 'red',
+  acknowledged: 'gold',
+  resolved: 'green',
+  closed: 'default',
+};
+
 const Alerts = () => {
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const navigate = useNavigate();
+  const [alerts, setAlerts] = useState<AlertWithAsset[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterSeverity, setFilterSeverity] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'date' | 'severity' | 'impact'>('date');
-  const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
+  const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined);
+  const [filterSeverity, setFilterSeverity] = useState<string | undefined>(undefined);
+  const [detailModalVisible, setDetailModalVisible] = useState(false);
+  const [selectedAlert, setSelectedAlert] = useState<AlertWithAsset | null>(null);
+  const [resolveModalVisible, setResolveModalVisible] = useState(false);
+  const [resolveNotes, setResolveNotes] = useState('');
+  const [resolveAlertId, setResolveAlertId] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadAlerts();
-  }, []);
-
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await alertsAPI.getAll({ sortBy: 'createdAt', order: 'desc' });
+      const params: { status?: string; limit?: number; offset?: number } = {
+        limit: 200,
+      };
+      if (filterStatus) {
+        params.status = filterStatus;
+      }
+      const response = await alertsAPI.getAll(params);
       setAlerts(response.data || []);
     } catch (error) {
       console.error('Failed to load alerts:', error);
+      message.error('Failed to load alerts');
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterStatus]);
 
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
+
+  // Client-side severity filter (severity lives inside event, not queryable server-side)
+  const filteredAlerts = filterSeverity
+    ? alerts.filter((a) => a.event?.severity === filterSeverity)
+    : alerts;
+
+  // Stats
+  const totalAlerts = alerts.length;
+  const openAlerts = alerts.filter((a) => a.status === 'open').length;
+  const criticalOpen = alerts.filter(
+    (a) => a.status === 'open' && a.event?.severity === 'critical',
+  ).length;
+  const slaBreachedCount = alerts.filter((a) => a.slaBreached).length;
+
+  // Handlers
   const handleAcknowledge = async (alertId: string) => {
     try {
-      await alertsAPI.acknowledge(alertId, {
-        acknowledgedBy: 'admin@ems.com',
-        notes: 'Acknowledged via dashboard'
-      });
+      setActionLoading(alertId);
+      await alertsAPI.acknowledge(alertId, 'admin');
+      message.success('Alert acknowledged');
       await loadAlerts();
     } catch (error) {
       console.error('Failed to acknowledge alert:', error);
+      message.error('Failed to acknowledge alert');
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const handleResolve = async (alertId: string) => {
+  const openResolveModal = (alertId: string) => {
+    setResolveAlertId(alertId);
+    setResolveNotes('');
+    setResolveModalVisible(true);
+  };
+
+  const handleResolve = async () => {
+    if (!resolveAlertId) return;
     try {
-      await alertsAPI.resolve(alertId, {
-        resolvedBy: 'admin@ems.com',
-        notes: 'Resolved via dashboard',
-        resolutionCategory: 'fixed'
+      setActionLoading(resolveAlertId);
+      setResolveModalVisible(false);
+      await alertsAPI.resolve(resolveAlertId, {
+        resolutionNotes: resolveNotes || undefined,
+        resolutionCategory: 'fixed',
       });
+      message.success('Alert resolved');
       await loadAlerts();
     } catch (error) {
       console.error('Failed to resolve alert:', error);
+      message.error('Failed to resolve alert');
+    } finally {
+      setActionLoading(null);
+      setResolveAlertId(null);
     }
   };
 
   const handleClose = async (alertId: string) => {
     try {
-      await alertsAPI.close(alertId, {
-        closedBy: 'admin@ems.com',
-        notes: 'Closed via dashboard'
-      });
+      setActionLoading(alertId);
+      await alertsAPI.close(alertId);
+      message.success('Alert closed');
       await loadAlerts();
     } catch (error) {
       console.error('Failed to close alert:', error);
+      message.error('Failed to close alert');
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  const getSeverityColor = (severity?: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-100 text-red-800 border-red-300';
-      case 'warning':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'info':
-        return 'bg-blue-100 text-blue-800 border-blue-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
+  const showDetailModal = (alert: AlertWithAsset) => {
+    setSelectedAlert(alert);
+    setDetailModalVisible(true);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open':
-        return 'bg-red-100 text-red-800';
-      case 'acknowledged':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'resolved':
-        return 'bg-green-100 text-green-800';
-      case 'closed':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  // Table columns
+  const columns: ColumnsType<AlertWithAsset> = [
+    {
+      title: 'Severity',
+      key: 'severity',
+      width: 110,
+      sorter: (a, b) => {
+        const order: Record<string, number> = { critical: 3, warning: 2, info: 1 };
+        return (order[a.event?.severity || ''] || 0) - (order[b.event?.severity || ''] || 0);
+      },
+      defaultSortOrder: 'descend',
+      render: (_, record) => {
+        const severity = record.event?.severity || 'info';
+        const icons: Record<string, React.ReactNode> = {
+          critical: <CloseCircleOutlined />,
+          warning: <ExclamationCircleOutlined />,
+          info: <CheckCircleOutlined />,
+        };
+        return (
+          <Tag
+            icon={icons[severity]}
+            color={SEVERITY_TAG_COLORS[severity] || 'default'}
+          >
+            {severity.toUpperCase()}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      filters: [
+        { text: 'Open', value: 'open' },
+        { text: 'Acknowledged', value: 'acknowledged' },
+        { text: 'Resolved', value: 'resolved' },
+        { text: 'Closed', value: 'closed' },
+      ],
+      onFilter: (value, record) => record.status === value,
+      render: (status: string) => {
+        const icons: Record<string, React.ReactNode> = {
+          open: <FireOutlined />,
+          acknowledged: <UserOutlined />,
+          resolved: <CheckCircleOutlined />,
+          closed: <ClockCircleOutlined />,
+        };
+        return (
+          <Tag icon={icons[status]} color={STATUS_TAG_COLORS[status] || 'default'}>
+            {status.toUpperCase()}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: 'Title',
+      key: 'title',
+      ellipsis: true,
+      render: (_, record) => (
+        <Tooltip title={record.event?.message}>
+          <a onClick={() => showDetailModal(record)} style={{ fontWeight: 500 }}>
+            {record.event?.title || 'Alert'}
+          </a>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Device',
+      key: 'device',
+      width: 200,
+      render: (_, record) => {
+        const asset = record.event?.asset;
+        if (!asset) {
+          return <Text type="secondary">N/A</Text>;
+        }
+        return (
+          <Space direction="vertical" size={0}>
+            <a
+              onClick={() => navigate(`/device/${asset.id}`)}
+              style={{ fontWeight: 500 }}
+            >
+              {asset.name}
+            </a>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {asset.ip} - {asset.type}
+            </Text>
+          </Space>
+        );
+      },
+    },
+    {
+      title: 'Location',
+      key: 'location',
+      width: 120,
+      render: (_, record) => {
+        const location = record.event?.asset?.location;
+        return location ? (
+          <Space size={4}>
+            <EnvironmentOutlined />
+            <span>{location}</span>
+          </Space>
+        ) : (
+          <Text type="secondary">--</Text>
+        );
+      },
+    },
+    {
+      title: 'Impact',
+      dataIndex: 'businessImpactScore',
+      key: 'impact',
+      width: 90,
+      sorter: (a, b) => (a.businessImpactScore || 0) - (b.businessImpactScore || 0),
+      render: (score: number | undefined) => {
+        if (score == null) return <Text type="secondary">--</Text>;
+        let color = '#52c41a';
+        if (score >= 80) color = '#f5222d';
+        else if (score >= 50) color = '#faad14';
+        return (
+          <Tooltip title={`Business Impact Score: ${score}/100`}>
+            <Text strong style={{ color }}>
+              {score}
+            </Text>
+          </Tooltip>
+        );
+      },
+    },
+    {
+      title: 'Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 160,
+      sorter: (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      defaultSortOrder: 'descend',
+      render: (date: string) => (
+        <Tooltip title={new Date(date).toLocaleString()}>
+          <span>{formatTimeAgo(date)}</span>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'SLA',
+      key: 'sla',
+      width: 70,
+      render: (_, record) => {
+        if (record.slaBreached) {
+          return (
+            <Tooltip title="SLA Breached">
+              <Badge status="error" text={<Text type="danger" style={{ fontSize: 12 }}>Breached</Text>} />
+            </Tooltip>
+          );
+        }
+        if (record.slaDeadline) {
+          return (
+            <Tooltip title={`Deadline: ${new Date(record.slaDeadline).toLocaleString()}`}>
+              <Badge status="processing" text={<Text style={{ fontSize: 12 }}>Active</Text>} />
+            </Tooltip>
+          );
+        }
+        return <Text type="secondary" style={{ fontSize: 12 }}>--</Text>;
+      },
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 240,
+      render: (_, record) => {
+        const isLoading = actionLoading === record.id;
+        return (
+          <Space size="small" wrap>
+            {record.status === 'open' && (
+              <>
+                <Button
+                  size="small"
+                  type="primary"
+                  ghost
+                  loading={isLoading}
+                  onClick={() => handleAcknowledge(record.id)}
+                >
+                  Acknowledge
+                </Button>
+                <Button
+                  size="small"
+                  type="primary"
+                  loading={isLoading}
+                  style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={() => openResolveModal(record.id)}
+                >
+                  Resolve
+                </Button>
+              </>
+            )}
+            {record.status === 'acknowledged' && (
+              <Button
+                size="small"
+                type="primary"
+                loading={isLoading}
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                onClick={() => openResolveModal(record.id)}
+              >
+                Resolve
+              </Button>
+            )}
+            {record.status === 'resolved' && (
+              <Button
+                size="small"
+                loading={isLoading}
+                onClick={() => handleClose(record.id)}
+              >
+                Close
+              </Button>
+            )}
+            {record.status === 'closed' && (
+              <Tag color="default">Closed</Tag>
+            )}
+          </Space>
+        );
+      },
+    },
+  ];
 
-  const getImpactColor = (score?: number) => {
-    if (!score) return 'text-gray-600';
-    if (score >= 80) return 'text-red-600';
-    if (score >= 50) return 'text-orange-600';
-    return 'text-yellow-600';
-  };
+  // Expandable row render
+  const expandedRowRender = (record: AlertWithAsset) => {
+    const event = record.event;
+    const asset = event?.asset;
 
-  // Filtering
-  const filteredAlerts = alerts.filter((alert) => {
-    if (filterStatus !== 'all' && alert.status !== filterStatus) return false;
-    if (filterSeverity !== 'all' && alert.event?.severity !== filterSeverity) return false;
-    return true;
-  });
-
-  // Sorting
-  const sortedAlerts = [...filteredAlerts].sort((a, b) => {
-    switch (sortBy) {
-      case 'date':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      case 'severity':
-        const severityOrder = { critical: 3, warning: 2, info: 1 };
-        return (severityOrder[b.event?.severity as keyof typeof severityOrder] || 0) - 
-               (severityOrder[a.event?.severity as keyof typeof severityOrder] || 0);
-      case 'impact':
-        return (b.businessImpactScore || 0) - (a.businessImpactScore || 0);
-      default:
-        return 0;
-    }
-  });
-
-  if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="text-4xl mb-4">⏳</div>
-          <p className="text-gray-600">Loading alerts...</p>
-        </div>
-      </div>
+      <Descriptions
+        bordered
+        size="small"
+        column={{ xs: 1, sm: 2, md: 3 }}
+        style={{ margin: '8px 0' }}
+      >
+        <Descriptions.Item label="Alert ID">
+          <Text copyable style={{ fontSize: 12 }}>{record.id}</Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="Event ID">
+          <Text copyable style={{ fontSize: 12 }}>{record.eventId}</Text>
+        </Descriptions.Item>
+        <Descriptions.Item label="Source">
+          <Tag>{event?.source?.toUpperCase() || 'N/A'}</Tag>
+        </Descriptions.Item>
+
+        <Descriptions.Item label="Category">
+          {event?.category || 'N/A'}
+        </Descriptions.Item>
+        <Descriptions.Item label="Occurrences">
+          <Badge
+            count={event?.occurrenceCount || 0}
+            showZero
+            style={{ backgroundColor: (event?.occurrenceCount || 0) > 1 ? '#faad14' : '#52c41a' }}
+          />
+        </Descriptions.Item>
+        <Descriptions.Item label="Event Timestamp">
+          {event?.timestamp ? new Date(event.timestamp).toLocaleString() : 'N/A'}
+        </Descriptions.Item>
+
+        <Descriptions.Item label="Event Message" span={3}>
+          {event?.message || 'No message available'}
+        </Descriptions.Item>
+
+        {asset && (
+          <>
+            <Descriptions.Item label="Device Name">
+              <a onClick={() => navigate(`/device/${asset.id}`)}>{asset.name}</a>
+            </Descriptions.Item>
+            <Descriptions.Item label="Device IP">{asset.ip}</Descriptions.Item>
+            <Descriptions.Item label="Device Type">
+              <Tag color="blue">{asset.type}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Location">{asset.location}</Descriptions.Item>
+            <Descriptions.Item label="Tier">
+              <Tag color="purple">Tier {asset.tier}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="Device Status">
+              <Tag color={asset.status === 'online' ? 'green' : asset.status === 'offline' ? 'red' : 'orange'}>
+                {asset.status?.toUpperCase()}
+              </Tag>
+            </Descriptions.Item>
+          </>
+        )}
+
+        {(record.affectedUsers != null || record.revenueAtRisk != null) && (
+          <>
+            <Descriptions.Item label="Affected Users">
+              {record.affectedUsers != null ? (
+                <Space>
+                  <UserOutlined />
+                  <span>~{record.affectedUsers.toLocaleString()}</span>
+                </Space>
+              ) : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Revenue at Risk">
+              {record.revenueAtRisk != null ? (
+                <Space>
+                  <DollarOutlined />
+                  <Text type="danger">${record.revenueAtRisk.toLocaleString()}</Text>
+                </Space>
+              ) : 'N/A'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Impact Score">
+              {record.businessImpactScore ?? 'N/A'}
+            </Descriptions.Item>
+          </>
+        )}
+
+        <Descriptions.Item label="Owner">{record.owner || 'Unassigned'}</Descriptions.Item>
+        <Descriptions.Item label="Team">{record.team || 'Unassigned'}</Descriptions.Item>
+        <Descriptions.Item label="SLA Breached">
+          {record.slaBreached ? (
+            <Tag color="red">YES</Tag>
+          ) : (
+            <Tag color="green">NO</Tag>
+          )}
+        </Descriptions.Item>
+
+        {record.acknowledgedAt && (
+          <Descriptions.Item label="Acknowledged At">
+            {new Date(record.acknowledgedAt).toLocaleString()}
+          </Descriptions.Item>
+        )}
+        {record.resolvedAt && (
+          <Descriptions.Item label="Resolved At">
+            {new Date(record.resolvedAt).toLocaleString()}
+          </Descriptions.Item>
+        )}
+        {record.resolutionNotes && (
+          <Descriptions.Item label="Resolution Notes" span={3}>
+            <Text>{record.resolutionNotes}</Text>
+          </Descriptions.Item>
+        )}
+        {record.resolutionCategory && (
+          <Descriptions.Item label="Resolution Category">
+            <Tag>{record.resolutionCategory}</Tag>
+          </Descriptions.Item>
+        )}
+      </Descriptions>
     );
-  }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Total Alerts</p>
-          <p className="text-2xl font-bold text-gray-900">{alerts.length}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Open</p>
-          <p className="text-2xl font-bold text-red-600">
-            {alerts.filter((a) => a.status === 'open').length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Critical</p>
-          <p className="text-2xl font-bold text-red-600">
-            {alerts.filter((a) => a.event?.severity === 'critical' && a.status === 'open').length}
-          </p>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <p className="text-sm text-gray-600">Avg Impact</p>
-          <p className={`text-2xl font-bold ${getImpactColor(
-            Math.round(alerts.reduce((sum, a) => sum + (a.businessImpactScore || 0), 0) / alerts.length)
-          )}`}>
-            {Math.round(alerts.reduce((sum, a) => sum + (a.businessImpactScore || 0), 0) / alerts.length)}
-          </p>
-        </div>
+    <div>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2}>
+          <AlertOutlined style={{ marginRight: 8 }} />
+          Alert Management
+        </Title>
+        <Text type="secondary">
+          Monitor, triage, and resolve infrastructure alerts
+        </Text>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex flex-wrap gap-4">
+      {/* Statistics Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Total Alerts"
+              value={totalAlerts}
+              prefix={<AlertOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Open"
+              value={openAlerts}
+              prefix={<FireOutlined />}
+              valueStyle={{ color: openAlerts > 0 ? '#f5222d' : '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="Critical (Open)"
+              value={criticalOpen}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: criticalOpen > 0 ? '#f5222d' : '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card>
+            <Statistic
+              title="SLA Breached"
+              value={slaBreachedCount}
+              prefix={<WarningOutlined />}
+              valueStyle={{ color: slaBreachedCount > 0 ? '#faad14' : '#52c41a' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Filter Bar */}
+      <Card style={{ marginBottom: 24 }}>
+        <Space wrap size="middle">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
               Status
-            </label>
-            <select
+            </Text>
+            <Select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="all">All Status</option>
-              <option value="open">Open</option>
-              <option value="acknowledged">Acknowledged</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
+              onChange={(value) => setFilterStatus(value)}
+              allowClear
+              placeholder="All Statuses"
+              style={{ width: 180 }}
+              options={[
+                { label: 'Open', value: 'open' },
+                { label: 'Acknowledged', value: 'acknowledged' },
+                { label: 'Resolved', value: 'resolved' },
+                { label: 'Closed', value: 'closed' },
+              ]}
+            />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <Text type="secondary" style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>
               Severity
-            </label>
-            <select
+            </Text>
+            <Select
               value={filterSeverity}
-              onChange={(e) => setFilterSeverity(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="all">All Severity</option>
-              <option value="critical">Critical</option>
-              <option value="warning">Warning</option>
-              <option value="info">Info</option>
-            </select>
+              onChange={(value) => setFilterSeverity(value)}
+              allowClear
+              placeholder="All Severities"
+              style={{ width: 180 }}
+              options={[
+                { label: 'Critical', value: 'critical' },
+                { label: 'Warning', value: 'warning' },
+                { label: 'Info', value: 'info' },
+              ]}
+            />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sort By
-            </label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="date">Date</option>
-              <option value="severity">Severity</option>
-              <option value="impact">Business Impact</option>
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
+          <div style={{ display: 'flex', alignItems: 'flex-end', paddingTop: 18 }}>
+            <Button
+              icon={<SyncOutlined spin={loading} />}
               onClick={loadAlerts}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              loading={loading}
             >
-              🔄 Refresh
-            </button>
+              Refresh
+            </Button>
           </div>
+        </Space>
+      </Card>
+
+      {/* Alerts Table */}
+      <Card
+        title={
+          <Space>
+            <AlertOutlined />
+            <span>Alerts ({filteredAlerts.length})</span>
+          </Space>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={filteredAlerts}
+          loading={loading}
+          rowKey="id"
+          pagination={{
+            pageSize: 15,
+            showSizeChanger: true,
+            pageSizeOptions: ['10', '15', '25', '50'],
+            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} alerts`,
+          }}
+          expandable={{
+            expandedRowRender,
+            rowExpandable: () => true,
+          }}
+          scroll={{ x: 1200 }}
+          size="middle"
+        />
+      </Card>
+
+      {/* Alert Detail Modal */}
+      <Modal
+        title={
+          <Space>
+            <AlertOutlined />
+            <span>Alert Details</span>
+          </Space>
+        }
+        open={detailModalVisible}
+        onCancel={() => {
+          setDetailModalVisible(false);
+          setSelectedAlert(null);
+        }}
+        footer={
+          selectedAlert ? (
+            <Space>
+              {selectedAlert.status === 'open' && (
+                <>
+                  <Button
+                    type="primary"
+                    ghost
+                    onClick={() => {
+                      handleAcknowledge(selectedAlert.id);
+                      setDetailModalVisible(false);
+                    }}
+                  >
+                    Acknowledge
+                  </Button>
+                  <Button
+                    type="primary"
+                    style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                    onClick={() => {
+                      openResolveModal(selectedAlert.id);
+                      setDetailModalVisible(false);
+                    }}
+                  >
+                    Resolve
+                  </Button>
+                </>
+              )}
+              {selectedAlert.status === 'acknowledged' && (
+                <Button
+                  type="primary"
+                  style={{ background: '#52c41a', borderColor: '#52c41a' }}
+                  onClick={() => {
+                    openResolveModal(selectedAlert.id);
+                    setDetailModalVisible(false);
+                  }}
+                >
+                  Resolve
+                </Button>
+              )}
+              {selectedAlert.status === 'resolved' && (
+                <Button
+                  onClick={() => {
+                    handleClose(selectedAlert.id);
+                    setDetailModalVisible(false);
+                  }}
+                >
+                  Close
+                </Button>
+              )}
+              <Button onClick={() => setDetailModalVisible(false)}>Dismiss</Button>
+            </Space>
+          ) : null
+        }
+        width={800}
+      >
+        {selectedAlert && expandedRowRender(selectedAlert)}
+      </Modal>
+
+      {/* Resolve Modal */}
+      <Modal
+        title="Resolve Alert"
+        open={resolveModalVisible}
+        onOk={handleResolve}
+        onCancel={() => {
+          setResolveModalVisible(false);
+          setResolveAlertId(null);
+          setResolveNotes('');
+        }}
+        okText="Resolve"
+        okButtonProps={{ style: { background: '#52c41a', borderColor: '#52c41a' } }}
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary">
+            Provide optional resolution notes before resolving this alert.
+          </Text>
         </div>
-      </div>
-
-      {/* Alerts List */}
-      <div className="space-y-4">
-        {sortedAlerts.map((alert) => (
-          <div
-            key={alert.id}
-            className="bg-white rounded-lg shadow hover:shadow-md transition-shadow"
-          >
-            <div className="p-6">
-              {/* Alert Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${getSeverityColor(alert.event?.severity)}`}>
-                      {alert.event?.severity?.toUpperCase() || 'INFO'}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(alert.status)}`}>
-                      {alert.status.toUpperCase()}
-                    </span>
-                    {alert.businessImpactScore && (
-                      <span className={`px-3 py-1 rounded-full text-sm font-semibold bg-purple-100 text-purple-800`}>
-                        Impact: {alert.businessImpactScore}
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">
-                    {alert.event?.title || 'Alert'}
-                  </h3>
-                  <p className="text-gray-600">
-                    {alert.event?.message || 'No message available'}
-                  </p>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="text-sm text-gray-500">
-                    {new Date(alert.createdAt).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-
-              {/* ML Insights */}
-              {(alert.affectedUsers || alert.revenueAtRisk || alert.rootCauseAssetId) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <h4 className="text-sm font-semibold text-blue-900 mb-2">🤖 AI-Powered Insights</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    {alert.affectedUsers && (
-                      <div>
-                        <span className="text-blue-700 font-medium">Affected Users:</span>
-                        <span className="text-blue-900 ml-2">~{alert.affectedUsers}</span>
-                      </div>
-                    )}
-                    {alert.revenueAtRisk && (
-                      <div>
-                        <span className="text-blue-700 font-medium">Revenue at Risk:</span>
-                        <span className="text-blue-900 ml-2">${alert.revenueAtRisk.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {alert.rootCauseAssetId && (
-                      <div>
-                        <span className="text-blue-700 font-medium">Root Cause:</span>
-                        <span className="text-blue-900 ml-2">Identified</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Event Details */}
-              {alert.event && (
-                <div className="border-t border-gray-200 pt-4 mb-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600 font-medium">Source:</span>
-                      <span className="text-gray-900 ml-2">{alert.event.source}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600 font-medium">Category:</span>
-                      <span className="text-gray-900 ml-2">{alert.event.category}</span>
-                    </div>
-                    {alert.event.occurrenceCount > 1 && (
-                      <div>
-                        <span className="text-gray-600 font-medium">Occurrences:</span>
-                        <span className="text-gray-900 ml-2">{alert.event.occurrenceCount}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Resolution Notes */}
-              {alert.resolutionNotes && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                  <h4 className="text-sm font-semibold text-green-900 mb-1">Resolution Notes</h4>
-                  <p className="text-sm text-green-800">{alert.resolutionNotes}</p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-2">
-                {alert.status === 'open' && (
-                  <button
-                    onClick={() => handleAcknowledge(alert.id)}
-                    className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm font-medium"
-                  >
-                    ✓ Acknowledge
-                  </button>
-                )}
-                {(alert.status === 'open' || alert.status === 'acknowledged') && (
-                  <button
-                    onClick={() => handleResolve(alert.id)}
-                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium"
-                  >
-                    ✓ Resolve
-                  </button>
-                )}
-                {alert.status === 'resolved' && (
-                  <button
-                    onClick={() => handleClose(alert.id)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm font-medium"
-                  >
-                    ✓ Close
-                  </button>
-                )}
-                {alert.status === 'closed' && (
-                  <span className="px-4 py-2 bg-gray-100 text-gray-600 rounded-md text-sm font-medium">
-                    ✓ Closed
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {sortedAlerts.length === 0 && (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <div className="text-6xl mb-4">✅</div>
-            <p className="text-xl text-gray-600">No alerts found matching your filters</p>
-          </div>
-        )}
-      </div>
+        <TextArea
+          rows={4}
+          value={resolveNotes}
+          onChange={(e) => setResolveNotes(e.target.value)}
+          placeholder="Resolution notes (optional)..."
+        />
+      </Modal>
     </div>
   );
 };
+
+// Utility: human-readable relative time
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffDay > 0) return `${diffDay}d ago`;
+  if (diffHr > 0) return `${diffHr}h ago`;
+  if (diffMin > 0) return `${diffMin}m ago`;
+  return 'just now';
+}
 
 export default Alerts;

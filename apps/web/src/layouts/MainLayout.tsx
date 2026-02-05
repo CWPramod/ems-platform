@@ -1,4 +1,4 @@
-// Professional Enterprise MainLayout with Authentication
+// Professional Enterprise MainLayout — Dark Blue Theme
 // apps/web/src/layouts/MainLayout.tsx
 
 import { useState } from 'react';
@@ -37,11 +37,13 @@ import {
   FileTextOutlined,
   SecurityScanOutlined,
   SafetyCertificateOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { APP_MODE, FEATURES } from '../config/appMode';
 import { useAuth } from '../contexts/AuthContext';
 import LicenseWarningBanner from '../components/LicenseWarningBanner';
+import CanarisLogo from '../components/CanarisLogo';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
@@ -102,6 +104,13 @@ export default function MainLayout() {
       key: '/',
       icon: <DashboardOutlined />,
       label: 'Dashboard',
+    },
+
+    // Masters
+    {
+      key: '/masters',
+      icon: <DatabaseOutlined />,
+      label: 'Masters',
     },
 
     // NMS Menus (always visible)
@@ -215,24 +224,11 @@ export default function MainLayout() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            borderBottom: '1px solid #1e3a5f',
+            padding: '0 12px',
           }}
         >
-          {!collapsed ? (
-            <Text
-              strong
-              style={{
-                color: '#fff',
-                fontSize: '18px',
-                letterSpacing: '1px',
-              }}
-            >
-              🔷 CANARIS
-            </Text>
-          ) : (
-            <Text style={{ color: '#fff', fontSize: '24px' }}>🔷</Text>
-          )}
+          <CanarisLogo size="md" collapsed={collapsed} />
         </div>
 
         {/* Menu */}
@@ -252,11 +248,10 @@ export default function MainLayout() {
         <Header
           style={{
             padding: '0 24px',
-            background: '#fff',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0,21,41,.08)',
+            borderBottom: '1px solid #1e3a5f',
             position: 'sticky',
             top: 0,
             zIndex: 1,
@@ -267,7 +262,7 @@ export default function MainLayout() {
               type="text"
               icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               onClick={() => setCollapsed(!collapsed)}
-              style={{ fontSize: '16px' }}
+              style={{ fontSize: '16px', color: '#8ba3c1' }}
             />
             <Text strong style={{ fontSize: '16px', marginLeft: '16px' }}>
               {APP_MODE === 'nms' ? 'Network Management System' : 'Enterprise Management System'}
@@ -277,14 +272,14 @@ export default function MainLayout() {
           <Space size="large">
             {/* Notifications */}
             <Badge count={5} offset={[-5, 5]}>
-              <Button type="text" icon={<BellOutlined style={{ fontSize: '18px' }} />} />
+              <Button type="text" icon={<BellOutlined style={{ fontSize: '18px', color: '#8ba3c1' }} />} />
             </Badge>
 
             {/* User Dropdown */}
             <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
               <Space style={{ cursor: 'pointer' }}>
                 <Avatar
-                  style={{ backgroundColor: '#1890ff' }}
+                  style={{ backgroundColor: '#1e88e5' }}
                   icon={<UserOutlined />}
                 />
                 <Text>{user?.username || 'Admin User'}</Text>
@@ -300,8 +295,7 @@ export default function MainLayout() {
         <div
           style={{
             padding: '12px 24px',
-            background: '#fff',
-            borderBottom: '1px solid #f0f0f0',
+            borderBottom: '1px solid #1e3a5f',
           }}
         >
           <Breadcrumb items={getBreadcrumbs()} />
@@ -312,7 +306,6 @@ export default function MainLayout() {
           style={{
             margin: '24px',
             padding: '24px',
-            background: '#f0f2f5',
             minHeight: 'calc(100vh - 168px)',
           }}
         >

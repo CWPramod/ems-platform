@@ -13,7 +13,11 @@ import {
   Query,
   UseGuards,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { DevicesService } from './devices.service';
 import type { CreateDeviceDto } from './devices.service';
@@ -132,6 +136,80 @@ export class DevicesController {
       success: true,
       message: 'Device deleted successfully',
     };
+  }
+
+  /**
+   * Bulk upload devices from CSV/JSON
+   * POST /api/v1/masters/devices/bulk-upload
+   */
+  @Post('bulk-upload')
+  @Permissions('device:create')
+  @UseGuards(RbacGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('devices') devicesJson?: string,
+  ) {
+    let devices: CreateDeviceDto[] = [];
+
+    if (file) {
+      const content = file.buffer.toString('utf-8');
+      if (file.originalname.endsWith('.csv') || file.mimetype === 'text/csv') {
+        devices = this.parseCsv(content);
+      } else if (file.originalname.endsWith('.json') || file.mimetype === 'application/json') {
+        devices = JSON.parse(content);
+      } else {
+        throw new BadRequestException('Unsupported file format. Use CSV or JSON.');
+      }
+    } else if (devicesJson) {
+      devices = JSON.parse(devicesJson);
+    } else {
+      throw new BadRequestException('No file or device data provided');
+    }
+
+    if (!Array.isArray(devices) || devices.length === 0) {
+      throw new BadRequestException('No valid device records found');
+    }
+
+    const result = await this.devicesService.bulkCreate(devices);
+    return {
+      success: true,
+      data: result,
+      message: `${result.created} devices created, ${result.errors.length} errors`,
+    };
+  }
+
+  private parseCsv(content: string): CreateDeviceDto[] {
+    const lines = content.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map((h) => h.trim().toLowerCase());
+    const devices: CreateDeviceDto[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map((v) => v.trim());
+      const row: any = {};
+      headers.forEach((header, idx) => {
+        if (values[idx]) row[header] = values[idx];
+      });
+
+      devices.push({
+        name: row.name || row.device_name || '',
+        type: row.type || row.device_type || 'server',
+        ip: row.ip || row.ip_address || '',
+        location: row.location || '',
+        region: row.region || undefined,
+        vendor: row.vendor || row.make || '',
+        model: row.model || undefined,
+        tags: row.tags ? row.tags.split(';') : [],
+        tier: parseInt(row.tier) || 3,
+        owner: row.owner || '',
+        department: row.department || undefined,
+        monitoringEnabled: row.monitoring_enabled !== 'false',
+      });
+    }
+
+    return devices;
   }
 
   /**

@@ -119,6 +119,38 @@ export class ReportsController {
   }
 
   /**
+   * Generate Traffic Report
+   * POST /api/v1/reporting/reports/traffic
+   */
+  @Post('traffic')
+  @Permissions('reports:read')
+  @UseGuards(RbacGuard)
+  async generateTrafficReport(
+    @Body() body: {
+      startDate: string;
+      endDate: string;
+      tier?: number;
+      location?: string;
+      deviceType?: string;
+    },
+  ) {
+    const params = {
+      startDate: new Date(body.startDate),
+      endDate: new Date(body.endDate),
+      tier: body.tier,
+      location: body.location,
+      deviceType: body.deviceType,
+    };
+
+    const report = await this.reportsService.generateTrafficReport(params);
+
+    return {
+      success: true,
+      data: report,
+    };
+  }
+
+  /**
    * Get Report History
    * GET /api/v1/reporting/reports/history?limit=50
    */

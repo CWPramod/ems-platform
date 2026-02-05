@@ -1,11 +1,40 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Card,
+  Row,
+  Col,
+  Statistic,
+  Table,
+  Tag,
+  Button,
+  Space,
+  Typography,
+  Spin,
+  message,
+} from 'antd';
+import {
+  ReloadOutlined,
+  SearchOutlined,
+  GlobalOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  FieldTimeOutlined,
+  EyeOutlined,
+} from '@ant-design/icons';
+import type { ColumnsType } from 'antd/es/table';
 import { nmsAPI, eventsAPI, assetsAPI } from '../services/api';
 import type { NetworkDevice, NMSStatus, Event, Asset } from '../types';
 import NetworkTopology from '../components/NetworkTopology';
 import DeviceMetrics from '../components/DeviceMetrics';
 import NetworkEvents from '../components/NetworkEvents';
+import DeviceQuickView from '../components/DeviceQuickView';
+
+const { Title, Text } = Typography;
 
 const Network = () => {
+  const navigate = useNavigate();
   const [nmsStatus, setNmsStatus] = useState<NMSStatus | null>(null);
   const [devices, setDevices] = useState<NetworkDevice[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -13,12 +42,16 @@ const Network = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
+  // DeviceQuickView state
+  const [quickViewDeviceId, setQuickViewDeviceId] = useState<string | null>(null);
+  const [quickViewVisible, setQuickViewVisible] = useState(false);
+
   // Network device types
   const NETWORK_DEVICE_TYPES = ['router', 'switch', 'firewall', 'load_balancer', 'access_point', 'network_device'];
 
   useEffect(() => {
     loadNetworkData();
-    
+
     // Auto-refresh every 30 seconds
     const interval = setInterval(loadNetworkData, 30000);
     return () => clearInterval(interval);
@@ -120,15 +153,23 @@ const Network = () => {
   const handleDiscovery = async () => {
     try {
       await nmsAPI.triggerDiscovery();
+      message.success('Device discovery triggered. Refreshing in 2 seconds...');
       // Reload data after a short delay
       setTimeout(loadNetworkData, 2000);
     } catch (error) {
       console.error('Failed to trigger discovery:', error);
+      message.error('Failed to trigger device discovery');
     }
   };
 
   const handleRefresh = () => {
+    message.info('Refreshing network data...');
     loadNetworkData();
+  };
+
+  const handleOpenQuickView = (deviceId: string) => {
+    setQuickViewDeviceId(deviceId);
+    setQuickViewVisible(true);
   };
 
   // Calculate stats
@@ -137,217 +178,297 @@ const Network = () => {
     online: devices.filter(d => d.status === 'reachable').length,
     offline: devices.filter(d => d.status === 'unreachable').length,
     degraded: devices.filter(d => d.status === 'degraded').length,
-    avgUptime: devices.length > 0 
-      ? devices.reduce((sum, d) => sum + (d.uptime || 0), 0) / devices.length 
+    avgUptime: devices.length > 0
+      ? devices.reduce((sum, d) => sum + (d.uptime || 0), 0) / devices.length
       : 0,
   };
 
   const recentEvents = events.slice(0, 10);
 
+  // Device type icon helper
+  const getDeviceTypeIcon = (type: string) => {
+    switch (type) {
+      case 'router': return '🔀';
+      case 'switch': return '🔌';
+      case 'firewall': return '🛡️';
+      case 'load_balancer': return '⚖️';
+      default: return '🌐';
+    }
+  };
+
+  // Status tag helper
+  const getStatusTag = (status: string) => {
+    if (status === 'reachable') {
+      return <Tag icon={<CheckCircleOutlined />} color="success">Reachable</Tag>;
+    }
+    if (status === 'degraded') {
+      return <Tag icon={<ExclamationCircleOutlined />} color="warning">Degraded</Tag>;
+    }
+    if (status === 'unreachable') {
+      return <Tag icon={<CloseCircleOutlined />} color="error">Unreachable</Tag>;
+    }
+    return <Tag color="default">{status || 'Unknown'}</Tag>;
+  };
+
+  // Table columns
+  const columns: ColumnsType<NetworkDevice> = [
+    {
+      title: 'Device',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record: NetworkDevice) => (
+        <Space>
+          <span style={{ fontSize: 20 }}>{getDeviceTypeIcon(record.type)}</span>
+          <div>
+            <a
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/device/${record.id}`);
+              }}
+              style={{ fontWeight: 500 }}
+            >
+              {name}
+            </a>
+            {record.vendor && (
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {record.vendor} {record.model}
+                </Text>
+              </div>
+            )}
+          </div>
+        </Space>
+      ),
+    },
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type: string) => (
+        <Text style={{ textTransform: 'capitalize' }}>
+          {type.replace('_', ' ')}
+        </Text>
+      ),
+    },
+    {
+      title: 'IP',
+      dataIndex: 'ipAddress',
+      key: 'ipAddress',
+      render: (ip: string) => <Text code>{ip}</Text>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => getStatusTag(status),
+      filters: [
+        { text: 'Reachable', value: 'reachable' },
+        { text: 'Degraded', value: 'degraded' },
+        { text: 'Unreachable', value: 'unreachable' },
+      ],
+      onFilter: (value, record) => record.status === value,
+    },
+    {
+      title: 'Location',
+      dataIndex: 'location',
+      key: 'location',
+      render: (location: string) => location || '-',
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      width: 120,
+      render: (_: any, record: NetworkDevice) => (
+        <Button
+          type="link"
+          icon={<EyeOutlined />}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleOpenQuickView(record.id);
+          }}
+        >
+          View Details
+        </Button>
+      ),
+    },
+  ];
+
   if (loading && !nmsStatus) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading network data...</p>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '120px 0' }}>
+        <Spin size="large" tip="Loading network data..." />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div>
       {/* Header Actions */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handleRefresh}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <span>🔄</span>
-            <span>Refresh</span>
-          </button>
-          <button
-            onClick={handleDiscovery}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-          >
-            <span>🔍</span>
-            <span>Discover Devices</span>
-          </button>
-        </div>
-        <div className="text-sm text-gray-600">
-          Last updated: {lastUpdate.toLocaleTimeString()}
-        </div>
-      </div>
+      <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+        <Col>
+          <Space>
+            <Button
+              type="primary"
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+            >
+              Refresh
+            </Button>
+            <Button
+              type="default"
+              icon={<SearchOutlined />}
+              onClick={handleDiscovery}
+              style={{ borderColor: '#52c41a', color: '#52c41a' }}
+            >
+              Discover Devices
+            </Button>
+          </Space>
+        </Col>
+        <Col>
+          <Text type="secondary">
+            Last updated: {lastUpdate.toLocaleTimeString()}
+          </Text>
+        </Col>
+      </Row>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        {/* Total Devices */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Total Devices</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-            <div className="text-4xl">🌐</div>
-          </div>
-        </div>
-
-        {/* Online */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Online</p>
-              <p className="text-3xl font-bold text-green-600">{stats.online}</p>
-            </div>
-            <div className="text-4xl">✅</div>
-          </div>
-        </div>
-
-        {/* Offline */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Offline</p>
-              <p className="text-3xl font-bold text-red-600">{stats.offline}</p>
-            </div>
-            <div className="text-4xl">❌</div>
-          </div>
-        </div>
-
-        {/* Degraded */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Degraded</p>
-              <p className="text-3xl font-bold text-yellow-600">{stats.degraded}</p>
-            </div>
-            <div className="text-4xl">⚠️</div>
-          </div>
-        </div>
-
-        {/* Avg Uptime */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Avg Uptime</p>
-              <p className="text-3xl font-bold text-blue-600">{stats.avgUptime.toFixed(1)}%</p>
-            </div>
-            <div className="text-4xl">⏱️</div>
-          </div>
-        </div>
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        <Col xs={24} sm={12} lg={4} xl={4}>
+          <Card>
+            <Statistic
+              title="Total Devices"
+              value={stats.total}
+              prefix={<GlobalOutlined />}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={5} xl={5}>
+          <Card>
+            <Statistic
+              title="Online"
+              value={stats.online}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={5} xl={5}>
+          <Card>
+            <Statistic
+              title="Offline"
+              value={stats.offline}
+              prefix={<CloseCircleOutlined />}
+              valueStyle={{ color: '#f5222d' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={5} xl={5}>
+          <Card>
+            <Statistic
+              title="Degraded"
+              value={stats.degraded}
+              prefix={<ExclamationCircleOutlined />}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={5} xl={5}>
+          <Card>
+            <Statistic
+              title="Avg Uptime"
+              value={stats.avgUptime.toFixed(1)}
+              suffix="%"
+              prefix={<FieldTimeOutlined />}
+              valueStyle={{ color: '#1890ff' }}
+            />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Network Topology */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Network Topology</h3>
-        <NetworkTopology 
-          devices={devices} 
+      <Card
+        title={<Title level={5} style={{ margin: 0 }}>Network Topology</Title>}
+        style={{ marginBottom: 24 }}
+      >
+        <NetworkTopology
+          devices={devices}
           onDeviceSelect={setSelectedDevice}
         />
-      </div>
+      </Card>
 
       {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Device List & Metrics */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Network Devices</h3>
-          <div className="space-y-4">
-            {devices.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p className="text-xl mb-2">🔍</p>
-                <p>No network devices found</p>
-                <p className="text-sm mt-1">Click "Discover Devices" to scan for devices</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Location</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {devices.map((device) => (
-                      <tr 
-                        key={device.id}
-                        onClick={() => setSelectedDevice(device)}
-                        className="hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xl">
-                              {device.type === 'router' && '🔀'}
-                              {device.type === 'switch' && '🔌'}
-                              {device.type === 'firewall' && '🛡️'}
-                              {device.type === 'load_balancer' && '⚖️'}
-                              {!['router', 'switch', 'firewall', 'load_balancer'].includes(device.type) && '🌐'}
-                            </span>
-                            <div>
-                              <p className="font-medium text-gray-900">{device.name}</p>
-                              {device.vendor && (
-                                <p className="text-xs text-gray-500">{device.vendor} {device.model}</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600 capitalize">
-                          {device.type.replace('_', ' ')}
-                        </td>
-                        <td className="px-4 py-3 text-sm font-mono text-gray-600">
-                          {device.ipAddress}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            device.status === 'reachable' 
-                              ? 'bg-green-100 text-green-800'
-                              : device.status === 'unreachable'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {device.status || 'unknown'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-sm text-gray-600">
-                          {device.location || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+        {/* Device List */}
+        <Col xs={24} lg={12}>
+          <Card
+            title={<Title level={5} style={{ margin: 0 }}>Network Devices</Title>}
+          >
+            <Table<NetworkDevice>
+              columns={columns}
+              dataSource={devices}
+              rowKey="id"
+              size="small"
+              pagination={{ pageSize: 10, showSizeChanger: false }}
+              onRow={(record) => ({
+                onClick: () => setSelectedDevice(record),
+                style: { cursor: 'pointer' },
+              })}
+              locale={{
+                emptyText: (
+                  <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                    <SearchOutlined style={{ fontSize: 32, color: '#bfbfbf', display: 'block', marginBottom: 8 }} />
+                    <Text type="secondary">No network devices found</Text>
+                    <br />
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Click "Discover Devices" to scan for devices
+                    </Text>
+                  </div>
+                ),
+              }}
+            />
+          </Card>
+        </Col>
 
         {/* Events Timeline */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Events</h3>
-          <NetworkEvents events={recentEvents} />
-        </div>
-      </div>
+        <Col xs={24} lg={12}>
+          <Card
+            title={<Title level={5} style={{ margin: 0 }}>Recent Events</Title>}
+          >
+            <NetworkEvents events={recentEvents} />
+          </Card>
+        </Col>
+      </Row>
 
       {/* Device Metrics (if device selected) */}
       {selectedDevice && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Device Metrics: {selectedDevice.name}
-            </h3>
-            <button
-              onClick={() => setSelectedDevice(null)}
-              className="text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
-          </div>
+        <Card
+          title={
+            <Space>
+              <Title level={5} style={{ margin: 0 }}>
+                Device Metrics: {selectedDevice.name}
+              </Title>
+            </Space>
+          }
+          extra={
+            <Button type="text" onClick={() => setSelectedDevice(null)}>
+              Close
+            </Button>
+          }
+          style={{ marginBottom: 24 }}
+        >
           <DeviceMetrics device={selectedDevice} />
-        </div>
+        </Card>
       )}
+
+      {/* DeviceQuickView Drawer */}
+      <DeviceQuickView
+        deviceId={quickViewDeviceId}
+        visible={quickViewVisible}
+        onClose={() => {
+          setQuickViewVisible(false);
+          setQuickViewDeviceId(null);
+        }}
+      />
     </div>
   );
 };

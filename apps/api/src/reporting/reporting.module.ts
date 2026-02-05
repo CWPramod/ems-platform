@@ -12,6 +12,7 @@ import { ReportDefinition } from '../entities/report-definition.entity';
 import { ReportSchedule } from '../entities/report-schedule.entity';
 import { ReportHistory } from '../entities/report-history.entity';
 import { DashboardConfig } from '../entities/dashboard-config.entity';
+import { TrafficFlow } from '../entities/traffic-flow.entity';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { DashboardConfig } from '../entities/dashboard-config.entity';
       Asset,
       DeviceHealth,
       DeviceMetricsHistory,
+      TrafficFlow,
       ReportDefinition,
       ReportSchedule,
       ReportHistory,

@@ -1,4 +1,4 @@
-// Professional Login Page
+// Professional Login Page — Dark Blue Theme
 // Enterprise-grade login with CANARIS branding
 // apps/web/src/pages/Login.tsx
 
@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Space, Divider, Alert } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
+import CanarisLogo from '../components/CanarisLogo';
 
 const { Title, Text } = Typography;
 
@@ -38,37 +39,56 @@ export default function Login() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #071222 0%, #0a1628 30%, #0f2035 60%, #162d4a 100%)',
         padding: '20px',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
+      {/* Background glow effects */}
+      <div style={{
+        position: 'absolute',
+        top: '20%',
+        left: '10%',
+        width: '400px',
+        height: '400px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(30,136,229,0.08) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: '10%',
+        right: '15%',
+        width: '300px',
+        height: '300px',
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(30,136,229,0.06) 0%, transparent 70%)',
+        pointerEvents: 'none',
+      }} />
+
       <Card
         style={{
           width: '100%',
-          maxWidth: '450px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-          borderRadius: '12px',
+          maxWidth: '440px',
+          background: 'rgba(15, 32, 53, 0.85)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(30, 58, 95, 0.6)',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(30,136,229,0.1)',
+          borderRadius: '16px',
         }}
       >
         {/* Logo & Brand */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div
-            style={{
-              fontSize: '48px',
-              marginBottom: '16px',
-            }}
-          >
-            🔷
+          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+            <CanarisLogo size="lg" />
           </div>
-          <Title level={2} style={{ margin: 0, color: '#1890ff' }}>
-            CANARIS
-          </Title>
-          <Text type="secondary" style={{ fontSize: '16px' }}>
+          <Title level={4} style={{ margin: 0, color: '#8ba3c1', fontWeight: 400, letterSpacing: '0.5px' }}>
             Enterprise Management System
-          </Text>
+          </Title>
         </div>
 
-        <Divider />
+        <Divider style={{ borderColor: '#1e3a5f' }} />
 
         {/* Login Form */}
         <Form
@@ -90,30 +110,40 @@ export default function Login() {
           )}
 
           <Form.Item
-            label="Username"
+            label={<span style={{ color: '#8ba3c1' }}>Username</span>}
             name="username"
             rules={[
               { required: true, message: 'Please input your username!' },
             ]}
           >
             <Input
-              prefix={<UserOutlined style={{ color: '#1890ff' }} />}
+              prefix={<UserOutlined style={{ color: '#1e88e5' }} />}
               placeholder="Enter your username"
               autoComplete="username"
+              style={{
+                background: '#0a1628',
+                borderColor: '#1e3a5f',
+                color: '#e6edf5',
+              }}
             />
           </Form.Item>
 
           <Form.Item
-            label="Password"
+            label={<span style={{ color: '#8ba3c1' }}>Password</span>}
             name="password"
             rules={[
               { required: true, message: 'Please input your password!' },
             ]}
           >
             <Input.Password
-              prefix={<LockOutlined style={{ color: '#1890ff' }} />}
+              prefix={<LockOutlined style={{ color: '#1e88e5' }} />}
               placeholder="Enter your password"
               autoComplete="current-password"
+              style={{
+                background: '#0a1628',
+                borderColor: '#1e3a5f',
+                color: '#e6edf5',
+              }}
             />
           </Form.Item>
 
@@ -127,7 +157,10 @@ export default function Login() {
               style={{
                 height: '45px',
                 fontSize: '16px',
-                fontWeight: 'bold',
+                fontWeight: 600,
+                background: 'linear-gradient(135deg, #1e88e5, #1565c0)',
+                border: 'none',
+                borderRadius: '8px',
               }}
             >
               Sign In
@@ -135,24 +168,24 @@ export default function Login() {
           </Form.Item>
         </Form>
 
-        <Divider />
+        <Divider style={{ borderColor: '#1e3a5f' }} />
 
         {/* Demo Credentials */}
         <div style={{ textAlign: 'center' }}>
           <Space direction="vertical" size="small">
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+            <Text style={{ fontSize: '12px', color: '#5c7a99' }}>
               Demo Credentials:
             </Text>
-            <Text code style={{ fontSize: '12px' }}>
-              Username: admin | Password: admin123
+            <Text code style={{ fontSize: '12px', background: '#0a1628', color: '#8ba3c1', borderColor: '#1e3a5f' }}>
+              Username: admin | Password: Admin@123456
             </Text>
           </Space>
         </div>
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
-          <Text type="secondary" style={{ fontSize: '12px' }}>
-            © 2026 CANARIS. All rights reserved.
+          <Text style={{ fontSize: '12px', color: '#3d5a7a' }}>
+            &copy; 2026 CANARIS. All rights reserved.
           </Text>
         </div>
       </Card>

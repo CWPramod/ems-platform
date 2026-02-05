@@ -83,16 +83,37 @@ Added proper mock providers to: `assets.service.spec.ts`, `assets.controller.spe
 
 ---
 
-## Next Plan of Action: Priority 5 — Deployment Preparation
+## Next Plan of Action: 
 
-### 5a. Docker Setup
+Priority 5 — Additional User Stories
+
+### 5. Additional User Stories:
+- [ ] Pl check project folder C:\NMS. Pl check "Device Masters" and "Customer Masters" folders to support features like device master to contain all device data like make, model, ip, mac id, whether critical or normal, tiel, location etc. 
+- [ ] Create a "Masters" page Option on left side panel. Add Device upload feature. Bulk devices upload (excel or csv format) or indivial node devices. 
+- [ ] Network scan option: through ip range or subnet to auto discover new devices
+- [ ] Critical Device Dashboard: Drill down feature on all top widgets like "total devices", "Healthy", "warning", "critical" and also on critical device list below to display device details like Make, model, Mac id, Interfaces, Network Telemetry Details like inbound and outbound traffic, packet loss, latency, jitters, uptime etc.
+- [ ] Critical Device Dashboard: Enhance the graph to high quality professional look. Include graphs of uptime, network traffic flow in addition to current CPU an Memory performance trends.
+- [ ] Network Page: Drill down feature on network devices to display further relevant network telemetry and uptime details
+- [ ] Topology page: better GUI to properly display connection between different devices
+- [ ] Top  talker: display top consumer sender and receiver IP details, top application consumers,
+- [ ] Reports Page: Filter to get SLA report or uptime report, Device wise report,  — Template with all required environment variables
+- [ ] Alerts Page: Drill down feature on each event to give further details like device ip, tier, location, brief description of event and level of severity
+- [ ] Metrics Page: Include network telemetry parameters like uptime and traffic details
+- [ ] Enhance the overall UI to a very high quality professional look with dark blue background and suitable fonts including sign on panel
+- [ ] Make use of 'CANARIS" logo. Check file 'canaris plain logo design R.jpeg on the desktop. 
+- [ ] Support CLI-based network device configuration snapshot management including backup of configuration files, traffic logs, messages etc., pushing configuration files to target network devices.
+- [ ] Option for taking remote access via Telnet / SSH to target CLI-based Network Devices with an option to record all sessions to capture all commands being executed on the remote devices. 
+
+Priority 6 — Deployment Preparation
+
+### 6a. Docker Setup
 - [ ] `apps/api/Dockerfile` — Multi-stage build (build + production stages)
 - [ ] `docker-compose.yml` — API + PostgreSQL + Web frontend
 - [ ] `docker-compose.prod.yml` — Production overrides (no source mounts, optimized)
 - [ ] `.dockerignore` — Exclude node_modules, coverage, .git, etc.
 - [ ] `.env.example` — Template with all required environment variables
 
-### 5b. CI/CD Pipeline (GitHub Actions)
+### 6b. CI/CD Pipeline (GitHub Actions)
 - [ ] `.github/workflows/ci.yml` — On push/PR:
   - Lint (eslint)
   - Unit tests (`npm test`)
@@ -103,7 +124,7 @@ Added proper mock providers to: `assets.service.spec.ts`, `assets.controller.spe
   - Push to container registry
   - Deploy to target environment
 
-### 5c. Production Readiness
+### 6c. Production Readiness
 - [ ] Set `synchronize: false` in production TypeORM config
 - [ ] Add TypeORM migration setup (`npm run migration:generate`, `migration:run`)
 - [ ] CORS configuration for production domains
@@ -133,11 +154,29 @@ cd apps/api && npm run test:e2e
 # Watch mode (development)
 cd apps/api && npm run test:watch
 ```
-ERROR MESSAGE TO START BACKEND:
+Previous Session Summary: Monitoring Pages Data Fix
+                                                                                                                                                                                                                                               Problem: Dashboard, Network, Topology, and Top Talkers pages were not displaying data.
 
-src/test-utils/mock-repository.factory.ts:1:28
-    1 export type MockRepository<T = any> = Partial<
-                                 ~~~~~~~
-    This type parameter might need an `extends ObjectLiteral` constraint.
-
-[1:28:47 pm] Found 1 error. Watching for file changes.
+  Root Causes & Fixes (8 issues found):
+  ┌─────┬─────────────────────────────────────────────────────────────────────────────────────┬──────────┬─────────────────────────────────────────┐
+  │  #  │                                        Issue                                        │  Layer   │                   Fix                   │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 1   │ isAdmin() only checked 'admin', not 'super_admin'                                   │ Backend  │ Added 'super_admin' check               │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 2   │ QueryBuilder used snake_case DB column names instead of camelCase entity properties │ Backend  │ Fixed 3 service files                   │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 3   │ Dashboard status filters used 'up'/'down' but API returns 'online'/'offline'        │ Frontend │ Updated status mappings                 │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 4   │ TopTalkers expected flat rows but API returns {device, traffic} nested objects      │ Frontend │ Added data mapping layer                │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 5   │ NetworkTopology stats field names mismatched (totalDevices vs devices)              │ Frontend │ Merged stats with topology summary      │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 6   │ Network.tsx Promise.all() failed when NMS port 3001 unavailable                     │ Frontend │ Independent error handling per API call │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 7   │ nestAPI in api.ts had no JWT auth interceptor                                       │ Frontend │ Added token interceptor                 │
+  ├─────┼─────────────────────────────────────────────────────────────────────────────────────┼──────────┼─────────────────────────────────────────┤
+  │ 8   │ Corrupted .gitignore (UTF-16 null bytes) hid 15+ essential files                    │ Config   │ Rewrote clean gitignore                 │
+  └─────┴─────────────────────────────────────────────────────────────────────────────────────┴──────────┴─────────────────────────────────────────┘
+  Commit: db8a1a0 — 49 files, 7,244 insertions
+  Tests: 20 suites, 134 tests all passing
+  Next priority: Deployment preparation (Docker, CI/CD)

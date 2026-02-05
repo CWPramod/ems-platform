@@ -1,31 +1,34 @@
 // Top Talkers - Bandwidth Analysis Dashboard
 // apps/web/src/pages/TopTalkers.tsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
   Col,
   Statistic,
   Table,
+  Tabs,
   Tag,
   Select,
   Button,
   Space,
   Typography,
   Progress,
-  message,
-  Tooltip,
+  Spin,
 } from 'antd';
 import {
   ReloadOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
   ThunderboltOutlined,
   SwapOutlined,
   FireOutlined,
   CloudUploadOutlined,
   CloudDownloadOutlined,
+  DesktopOutlined,
+  GlobalOutlined,
+  SendOutlined,
+  InboxOutlined,
+  AppstoreOutlined,
 } from '@ant-design/icons';
 import {
   BarChart,
@@ -51,183 +54,49 @@ const { Option } = Select;
 // Color palette for charts
 const COLORS = ['#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16'];
 
-export default function TopTalkers() {
-  const [loading, setLoading] = useState(false);
-  const [timeRange, setTimeRange] = useState('1h');
-  const [topTalkers, setTopTalkers] = useState<any[]>([]);
-  const [protocols, setProtocols] = useState<any[]>([]);
-  const [stats, setStats] = useState<any>(null);
-  const [trafficTrend, setTrafficTrend] = useState<any[]>([]);
+// Dark theme chart styles
+const CHART_GRID_STROKE = 'rgba(255,255,255,0.1)';
+const CHART_AXIS_TICK = { fill: '#8ba3c1' };
+const CHART_TOOLTIP_STYLE = {
+  backgroundColor: '#0f2035',
+  border: '1px solid #1e3a5f',
+  color: '#e0e8f0',
+};
 
-  useEffect(() => {
-    fetchTopTalkersData();
-  }, [timeRange]);
+// Format bytes to human readable
+const formatBytes = (bytes: number) => {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+};
 
-  const fetchTopTalkersData = async () => {
-    setLoading(true);
-    try {
-      // Fetch top talkers
-      const talkersResponse = await apiService.getTopTalkers(10, timeRange, 'bytes');
-      console.log('Top Talkers Response:', talkersResponse);
-      
-      if (talkersResponse.success) {
-        // Data is nested under data.topTalkers, each item has {device, traffic}
-        const talkersData = talkersResponse.data?.topTalkers || [];
+// Format bandwidth (Mbps)
+const formatBandwidth = (mbps: number) => {
+  if (!mbps) return '0 Mbps';
+  if (mbps >= 1000) return (mbps / 1000).toFixed(2) + ' Gbps';
+  return mbps.toFixed(2) + ' Mbps';
+};
 
-        // If empty, generate mock data for visualization
-        if (talkersData.length === 0) {
-          const mockTalkers = generateMockTopTalkers();
-          setTopTalkers(mockTalkers);
-        } else {
-          // Map API format {device, traffic} to flat table rows
-          const mapped = talkersData.map((item: any) => ({
-            source: item.device?.name || item.device?.ip || 'Unknown',
-            destination: '-',
-            protocol: '-',
-            bytes: item.traffic?.totalBytes || 0,
-            bandwidth: (item.traffic?.totalBytes || 0) / (1024 * 1024), // Convert bytes to MB
-            percentage: 0, // Will be calculated below
-            flowCount: item.traffic?.flowCount || 0,
-            totalPackets: item.traffic?.totalPackets || 0,
-            deviceType: item.device?.type,
-            deviceIp: item.device?.ip,
-            location: item.device?.location,
-          }));
-          // Calculate percentages
-          const totalBytes = mapped.reduce((sum: number, t: any) => sum + t.bytes, 0);
-          mapped.forEach((t: any) => {
-            t.percentage = totalBytes > 0 ? (t.bytes / totalBytes) * 100 : 0;
-          });
-          setTopTalkers(mapped);
-        }
-      }
-
-      // Fetch protocols
-      const protocolsResponse = await apiService.getTopProtocols(5, timeRange);
-      console.log('Protocols Response:', protocolsResponse);
-      
-      if (protocolsResponse.success) {
-        // Handle both nested and direct data
-        const protocolsData = protocolsResponse.data?.protocols || protocolsResponse.data || [];
-        
-        // If empty, generate mock data
-        if (Array.isArray(protocolsData) && protocolsData.length === 0) {
-          setProtocols(generateMockProtocols());
-        } else {
-          setProtocols(Array.isArray(protocolsData) ? protocolsData : []);
-        }
-      }
-
-      // Fetch traffic stats
-      const statsResponse = await apiService.getTrafficStats(timeRange);
-      console.log('Stats Response:', statsResponse);
-      
-      if (statsResponse.success) {
-        const statsData = statsResponse.data;
-
-        if (!statsData || Object.keys(statsData).length === 0) {
-          setStats({ totalTraffic: 0, inbound: 0, outbound: 0, peakBandwidth: 0 });
-        } else {
-          // Map API field names to what the UI expects
-          const totalGB = parseFloat(statsData.totalGB || '0');
-          setStats({
-            totalTraffic: totalGB,
-            inbound: (totalGB * 0.55).toFixed(2), // Approximate split
-            outbound: (totalGB * 0.45).toFixed(2),
-            peakBandwidth: statsData.totalFlows || 0,
-            activeDevices: statsData.activeDevices || 0,
-            protocolCount: statsData.protocolCount || 0,
-          });
-        }
-
-        // Generate trend data (API doesn't provide trend data yet)
-        setTrafficTrend(generateMockTrend());
-      } else {
-        setStats({ totalTraffic: 0, inbound: 0, outbound: 0, peakBandwidth: 0 });
-        setTrafficTrend(generateMockTrend());
-      }
-
-      message.success('Traffic data loaded successfully');
-    } catch (error: any) {
-      console.error('Error fetching top talkers:', error);
-      message.error('Failed to load traffic data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Generate mock trend data for visualization
-  const generateMockTrend = () => {
-    const hours = timeRange === '1h' ? 12 : timeRange === '24h' ? 24 : 48;
-    return Array.from({ length: hours }, (_, i) => ({
-      time: `${i}:00`,
-      inbound: Math.floor(Math.random() * 500) + 200,
-      outbound: Math.floor(Math.random() * 400) + 150,
-      total: 0,
-    })).map(item => ({
-      ...item,
-      total: item.inbound + item.outbound,
-    }));
-  };
-
-  // Generate mock top talkers data
-  const generateMockTopTalkers = () => {
-    const sources = [
-      '192.168.1.100', '192.168.1.101', '192.168.1.102', '10.0.0.50',
-      '10.0.0.51', '172.16.0.10', '172.16.0.11', '192.168.2.100',
-      '192.168.2.101', '192.168.3.50'
-    ];
-    const destinations = [
-      '8.8.8.8', '1.1.1.1', '192.168.1.1', '10.0.0.1',
-      '172.16.0.1', '192.168.100.1', '203.0.113.1'
-    ];
-    const protocols = ['HTTPS', 'HTTP', 'SSH', 'DNS', 'FTP', 'SMTP'];
-
-    return sources.map((source, index) => {
-      const bytes = Math.floor(Math.random() * 10000000000) + 1000000000;
-      const bandwidth = Math.floor(Math.random() * 500) + 50;
-      const percentage = Math.max(5, 100 - index * 10);
-
-      return {
-        source,
-        destination: destinations[Math.floor(Math.random() * destinations.length)],
-        protocol: protocols[Math.floor(Math.random() * protocols.length)],
-        bytes,
-        bandwidth,
-        percentage,
-      };
-    }).sort((a, b) => b.bytes - a.bytes);
-  };
-
-  // Generate mock protocols data
-  const generateMockProtocols = () => {
-    return [
-      { protocol: 'HTTPS', bytes: 5368709120, percentage: 45.2 },
-      { protocol: 'HTTP', bytes: 2147483648, percentage: 18.1 },
-      { protocol: 'SSH', bytes: 1610612736, percentage: 13.5 },
-      { protocol: 'DNS', bytes: 1073741824, percentage: 9.0 },
-      { protocol: 'FTP', bytes: 858993459, percentage: 7.2 },
-      { protocol: 'Other', bytes: 858993459, percentage: 7.0 },
-    ];
-  };
-
-  // Format bytes to human readable
-  const formatBytes = (bytes: number) => {
-    if (!bytes) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  // Format bandwidth (Mbps)
-  const formatBandwidth = (mbps: number) => {
-    if (!mbps) return '0 Mbps';
-    if (mbps >= 1000) return (mbps / 1000).toFixed(2) + ' Gbps';
-    return mbps.toFixed(2) + ' Mbps';
-  };
-
-  // Table columns for top talkers
+// -------------------------------------------------------------------
+// Tab: By Device
+// -------------------------------------------------------------------
+function ByDeviceTab({
+  loading,
+  topTalkers,
+  protocols,
+  stats,
+  trafficTrend,
+  timeRange,
+}: {
+  loading: boolean;
+  topTalkers: any[];
+  protocols: any[];
+  stats: any;
+  trafficTrend: any[];
+  timeRange: string;
+}) {
   const columns: ColumnsType<any> = [
     {
       title: 'Rank',
@@ -244,7 +113,11 @@ export default function TopTalkers() {
       render: (text: string, record: any) => (
         <Space direction="vertical" size={0}>
           <Text strong>{text}</Text>
-          {record.deviceIp && <Text type="secondary" style={{ fontSize: '12px' }}>{record.deviceIp}</Text>}
+          {record.deviceIp && (
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.deviceIp}
+            </Text>
+          )}
         </Space>
       ),
     },
@@ -252,7 +125,7 @@ export default function TopTalkers() {
       title: 'Type',
       dataIndex: 'deviceType',
       key: 'deviceType',
-      render: (type: string) => type ? <Tag color="blue">{type}</Tag> : '-',
+      render: (type: string) => (type ? <Tag color="blue">{type}</Tag> : '-'),
     },
     {
       title: 'Location',
@@ -264,14 +137,14 @@ export default function TopTalkers() {
       title: 'Bytes Transferred',
       dataIndex: 'bytes',
       key: 'bytes',
-      sorter: (a, b) => a.bytes - b.bytes,
+      sorter: (a: any, b: any) => a.bytes - b.bytes,
       render: (bytes: number) => formatBytes(bytes),
     },
     {
       title: 'Flows',
       dataIndex: 'flowCount',
       key: 'flowCount',
-      sorter: (a, b) => a.flowCount - b.flowCount,
+      sorter: (a: any, b: any) => (a.flowCount || 0) - (b.flowCount || 0),
     },
     {
       title: 'Traffic %',
@@ -279,21 +152,17 @@ export default function TopTalkers() {
       key: 'percentage',
       render: (percentage: number) => (
         <Progress
-          percent={Math.round(percentage * 10) / 10}
+          percent={Math.round((percentage || 0) * 10) / 10}
           size="small"
-          strokeColor={{
-            '0%': '#108ee9',
-            '100%': '#87d068',
-          }}
+          strokeColor={{ '0%': '#108ee9', '100%': '#87d068' }}
         />
       ),
     },
   ];
 
-  // Prepare data for charts
   const topTalkersChartData = topTalkers.slice(0, 10).map((talker, index) => ({
-    name: (talker.source || `Talker ${index + 1}`).substring(0, 15),
-    bandwidth: talker.bytes ? talker.bytes / (1024 * 1024) : 0, // Convert to MB
+    name: (talker.source || `Device ${index + 1}`).substring(0, 15),
+    bandwidth: talker.bytes ? talker.bytes / (1024 * 1024) : 0,
     bytes: talker.bytes || 0,
   }));
 
@@ -304,15 +173,9 @@ export default function TopTalkers() {
   }));
 
   return (
-    <div>
-      {/* Page Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <Title level={2}>Top Talkers - Bandwidth Analysis</Title>
-        <Text type="secondary">Real-time network traffic analysis and bandwidth monitoring</Text>
-      </div>
-
+    <>
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
@@ -349,59 +212,44 @@ export default function TopTalkers() {
         <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
-              title="Peak Bandwidth"
-              value={stats?.peakBandwidth || 0}
-              suffix="Mbps"
-              prefix={<FireOutlined />}
+              title="Active Devices"
+              value={stats?.activeDevices || 0}
+              prefix={<DesktopOutlined />}
               valueStyle={{ color: '#f5222d' }}
             />
           </Card>
         </Col>
       </Row>
 
-      {/* Filters */}
-      <Card style={{ marginBottom: '16px' }}>
-        <Space wrap>
-          <Select
-            value={timeRange}
-            onChange={setTimeRange}
-            style={{ width: 150 }}
-          >
-            <Option value="1h">Last 1 Hour</Option>
-            <Option value="24h">Last 24 Hours</Option>
-            <Option value="7d">Last 7 Days</Option>
-            <Option value="30d">Last 30 Days</Option>
-          </Select>
-
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={fetchTopTalkersData}
-            loading={loading}
-          >
-            Refresh
-          </Button>
-        </Space>
-      </Card>
-
       {/* Charts Row */}
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        {/* Top Talkers Bar Chart */}
+      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={16}>
           <Card title="Top 10 Bandwidth Consumers">
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={topTalkersChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                <YAxis label={{ value: 'Bandwidth (Mbps)', angle: -90, position: 'insideLeft' }} />
-                <RechartsTooltip />
-                <Legend />
-                <Bar dataKey="bandwidth" fill="#1890ff" name="Bandwidth (Mbps)" />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+                <XAxis
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  tick={CHART_AXIS_TICK}
+                />
+                <YAxis
+                  label={{ value: 'MB', angle: -90, position: 'insideLeft', fill: '#8ba3c1' }}
+                  tick={CHART_AXIS_TICK}
+                />
+                <RechartsTooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value: number) => [formatBytes(value * 1024 * 1024), 'Traffic']}
+                />
+                <Legend wrapperStyle={{ color: '#8ba3c1' }} />
+                <Bar dataKey="bandwidth" fill="#1890ff" name="Traffic (MB)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
         </Col>
 
-        {/* Protocol Distribution Pie Chart */}
         <Col xs={24} lg={8}>
           <Card title="Protocol Distribution">
             <ResponsiveContainer width="100%" height={350}>
@@ -416,52 +264,712 @@ export default function TopTalkers() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {protocolChartData.map((entry, index) => (
+                  {protocolChartData.map((_entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <RechartsTooltip />
+                <RechartsTooltip contentStyle={CHART_TOOLTIP_STYLE} />
               </PieChart>
             </ResponsiveContainer>
           </Card>
         </Col>
       </Row>
 
-      {/* Traffic Trend Line Chart */}
-      <Card title="Traffic Trend" style={{ marginBottom: '24px' }}>
-        <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={trafficTrend}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="time" />
-            <YAxis label={{ value: 'Traffic (MB)', angle: -90, position: 'insideLeft' }} />
-            <RechartsTooltip />
-            <Legend />
-            <Line type="monotone" dataKey="inbound" stroke="#52c41a" strokeWidth={2} name="Inbound" />
-            <Line type="monotone" dataKey="outbound" stroke="#faad14" strokeWidth={2} name="Outbound" />
-            <Line type="monotone" dataKey="total" stroke="#1890ff" strokeWidth={2} name="Total" />
-          </LineChart>
-        </ResponsiveContainer>
-      </Card>
+      {/* Traffic Trend */}
+      {trafficTrend.length > 0 && (
+        <Card title="Traffic Trend" style={{ marginBottom: 24 }}>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={trafficTrend}>
+              <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+              <XAxis dataKey="time" tick={CHART_AXIS_TICK} />
+              <YAxis
+                label={{ value: 'Traffic (MB)', angle: -90, position: 'insideLeft', fill: '#8ba3c1' }}
+                tick={CHART_AXIS_TICK}
+              />
+              <RechartsTooltip contentStyle={CHART_TOOLTIP_STYLE} />
+              <Legend wrapperStyle={{ color: '#8ba3c1' }} />
+              <Line type="monotone" dataKey="inbound" stroke="#52c41a" strokeWidth={2} name="Inbound" dot={false} />
+              <Line type="monotone" dataKey="outbound" stroke="#faad14" strokeWidth={2} name="Outbound" dot={false} />
+              <Line type="monotone" dataKey="total" stroke="#1890ff" strokeWidth={2} name="Total" dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      )}
 
-      {/* Top Talkers Table */}
+      {/* Table */}
       <Card
         title={`Top Talkers (${timeRange})`}
         extra={
-          <Space>
-            <Tag color="blue">
-              <SwapOutlined /> {topTalkers.length} Conversations
-            </Tag>
-          </Space>
+          <Tag color="blue">
+            <SwapOutlined /> {topTalkers.length} Devices
+          </Tag>
         }
       >
         <Table
           columns={columns}
           dataSource={topTalkers}
           loading={loading}
-          rowKey={(record, index) => `talker-${index}`}
+          rowKey={(_record, index) => `talker-${index}`}
           pagination={{ pageSize: 20 }}
+          size="middle"
         />
       </Card>
+    </>
+  );
+}
+
+// -------------------------------------------------------------------
+// Tab: Top Senders
+// -------------------------------------------------------------------
+function TopSendersTab({ loading, data }: { loading: boolean; data: any[] }) {
+  const chartData = data.slice(0, 10).map((item) => ({
+    name: item.ip,
+    bytes: item.totalBytesSent || 0,
+  }));
+
+  const columns: ColumnsType<any> = [
+    {
+      title: 'Rank',
+      key: 'rank',
+      width: 70,
+      render: (_: any, __: any, index: number) => (
+        <Tag color={index < 3 ? 'volcano' : 'default'}>#{index + 1}</Tag>
+      ),
+    },
+    {
+      title: 'Source IP',
+      dataIndex: 'ip',
+      key: 'ip',
+      render: (ip: string) => <Text strong style={{ fontFamily: 'monospace' }}>{ip}</Text>,
+    },
+    {
+      title: 'Bytes Sent',
+      dataIndex: 'totalBytesSent',
+      key: 'totalBytesSent',
+      sorter: (a: any, b: any) => (a.totalBytesSent || 0) - (b.totalBytesSent || 0),
+      defaultSortOrder: 'descend' as const,
+      render: (bytes: number) => formatBytes(bytes),
+    },
+    {
+      title: 'Packets',
+      dataIndex: 'totalPacketsSent',
+      key: 'totalPacketsSent',
+      sorter: (a: any, b: any) => (a.totalPacketsSent || 0) - (b.totalPacketsSent || 0),
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: 'Flows',
+      dataIndex: 'flowCount',
+      key: 'flowCount',
+      sorter: (a: any, b: any) => (a.flowCount || 0) - (b.flowCount || 0),
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: 'Unique Destinations',
+      dataIndex: 'uniqueDestinations',
+      key: 'uniqueDestinations',
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: '% of Total',
+      dataIndex: 'percentage',
+      key: 'percentage',
+      width: 180,
+      render: (pct: number) => (
+        <Progress
+          percent={Math.round((pct || 0) * 10) / 10}
+          size="small"
+          strokeColor="#f5222d"
+        />
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Card title="Top 10 Source IPs by Bytes Sent" style={{ marginBottom: 24 }}>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 30 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+            <XAxis
+              type="number"
+              tick={CHART_AXIS_TICK}
+              tickFormatter={(val: number) => formatBytes(val)}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={140}
+              tick={{ fill: '#8ba3c1', fontSize: 12, fontFamily: 'monospace' }}
+            />
+            <RechartsTooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value: number) => [formatBytes(value), 'Bytes Sent']}
+            />
+            <Bar dataKey="bytes" fill="#f5222d" name="Bytes Sent" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card
+        title="Source IP Details"
+        extra={
+          <Tag color="red">
+            <SendOutlined /> {data.length} Sources
+          </Tag>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          rowKey={(record, index) => `sender-${record.ip || index}`}
+          pagination={{ pageSize: 20 }}
+          size="middle"
+        />
+      </Card>
+    </>
+  );
+}
+
+// -------------------------------------------------------------------
+// Tab: Top Receivers
+// -------------------------------------------------------------------
+function TopReceiversTab({ loading, data }: { loading: boolean; data: any[] }) {
+  const chartData = data.slice(0, 10).map((item) => ({
+    name: item.ip,
+    bytes: item.totalBytesReceived || 0,
+  }));
+
+  const columns: ColumnsType<any> = [
+    {
+      title: 'Rank',
+      key: 'rank',
+      width: 70,
+      render: (_: any, __: any, index: number) => (
+        <Tag color={index < 3 ? 'blue' : 'default'}>#{index + 1}</Tag>
+      ),
+    },
+    {
+      title: 'Destination IP',
+      dataIndex: 'ip',
+      key: 'ip',
+      render: (ip: string) => <Text strong style={{ fontFamily: 'monospace' }}>{ip}</Text>,
+    },
+    {
+      title: 'Bytes Received',
+      dataIndex: 'totalBytesReceived',
+      key: 'totalBytesReceived',
+      sorter: (a: any, b: any) => (a.totalBytesReceived || 0) - (b.totalBytesReceived || 0),
+      defaultSortOrder: 'descend' as const,
+      render: (bytes: number) => formatBytes(bytes),
+    },
+    {
+      title: 'Packets',
+      dataIndex: 'totalPacketsReceived',
+      key: 'totalPacketsReceived',
+      sorter: (a: any, b: any) => (a.totalPacketsReceived || 0) - (b.totalPacketsReceived || 0),
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: 'Flows',
+      dataIndex: 'flowCount',
+      key: 'flowCount',
+      sorter: (a: any, b: any) => (a.flowCount || 0) - (b.flowCount || 0),
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: 'Unique Sources',
+      dataIndex: 'uniqueSources',
+      key: 'uniqueSources',
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: '% of Total',
+      dataIndex: 'percentage',
+      key: 'percentage',
+      width: 180,
+      render: (pct: number) => (
+        <Progress
+          percent={Math.round((pct || 0) * 10) / 10}
+          size="small"
+          strokeColor="#1890ff"
+        />
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Card title="Top 10 Destination IPs by Bytes Received" style={{ marginBottom: 24 }}>
+        <ResponsiveContainer width="100%" height={400}>
+          <BarChart data={chartData} layout="vertical" margin={{ left: 20, right: 30 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID_STROKE} />
+            <XAxis
+              type="number"
+              tick={CHART_AXIS_TICK}
+              tickFormatter={(val: number) => formatBytes(val)}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={140}
+              tick={{ fill: '#8ba3c1', fontSize: 12, fontFamily: 'monospace' }}
+            />
+            <RechartsTooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value: number) => [formatBytes(value), 'Bytes Received']}
+            />
+            <Bar dataKey="bytes" fill="#1890ff" name="Bytes Received" radius={[0, 4, 4, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card
+        title="Destination IP Details"
+        extra={
+          <Tag color="blue">
+            <InboxOutlined /> {data.length} Destinations
+          </Tag>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          rowKey={(record, index) => `receiver-${record.ip || index}`}
+          pagination={{ pageSize: 20 }}
+          size="middle"
+        />
+      </Card>
+    </>
+  );
+}
+
+// -------------------------------------------------------------------
+// Tab: Applications
+// -------------------------------------------------------------------
+
+const APP_COLORS: Record<string, string> = {
+  HTTP: '#1890ff',
+  HTTPS: '#52c41a',
+  SSH: '#722ed1',
+  DNS: '#faad14',
+  FTP: '#f5222d',
+  SMTP: '#13c2c2',
+  SNMP: '#eb2f96',
+  Telnet: '#fa8c16',
+  MySQL: '#1890ff',
+  PostgreSQL: '#722ed1',
+  Redis: '#f5222d',
+  RDP: '#13c2c2',
+};
+
+function getAppColor(app: string, index: number): string {
+  return APP_COLORS[app] || COLORS[index % COLORS.length];
+}
+
+function ApplicationsTab({ loading, data }: { loading: boolean; data: any[] }) {
+  const donutData = data.slice(0, 10).map((item, index) => ({
+    name: item.application || `Port ${item.port}`,
+    value: item.totalBytes || 0,
+    percentage: parseFloat(item.percentage) || 0,
+    color: getAppColor(item.application, index),
+  }));
+
+  const columns: ColumnsType<any> = [
+    {
+      title: 'Rank',
+      key: 'rank',
+      width: 70,
+      render: (_: any, __: any, index: number) => (
+        <Tag color={index < 3 ? 'purple' : 'default'}>#{index + 1}</Tag>
+      ),
+    },
+    {
+      title: 'Application',
+      dataIndex: 'application',
+      key: 'application',
+      render: (app: string, _record: any, index: number) => (
+        <Space>
+          <span
+            style={{
+              display: 'inline-block',
+              width: 10,
+              height: 10,
+              borderRadius: '50%',
+              backgroundColor: getAppColor(app, index),
+            }}
+          />
+          <Text strong>{app || 'Unknown'}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Port',
+      dataIndex: 'port',
+      key: 'port',
+      render: (port: number) => <Tag>{port}</Tag>,
+    },
+    {
+      title: 'Protocol',
+      dataIndex: 'protocol',
+      key: 'protocol',
+      render: (proto: string) => <Tag color="geekblue">{proto || '-'}</Tag>,
+    },
+    {
+      title: 'Total Bytes',
+      dataIndex: 'totalBytes',
+      key: 'totalBytes',
+      sorter: (a: any, b: any) => (a.totalBytes || 0) - (b.totalBytes || 0),
+      defaultSortOrder: 'descend' as const,
+      render: (bytes: number) => formatBytes(bytes),
+    },
+    {
+      title: 'Packets',
+      dataIndex: 'totalPackets',
+      key: 'totalPackets',
+      sorter: (a: any, b: any) => (a.totalPackets || 0) - (b.totalPackets || 0),
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: 'Devices',
+      dataIndex: 'deviceCount',
+      key: 'deviceCount',
+      render: (val: number) => (val || 0).toLocaleString(),
+    },
+    {
+      title: '% of Total',
+      dataIndex: 'percentage',
+      key: 'percentage',
+      width: 180,
+      render: (pct: number) => (
+        <Progress
+          percent={Math.round((parseFloat(String(pct)) || 0) * 10) / 10}
+          size="small"
+          strokeColor="#722ed1"
+        />
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <Card title="Application Traffic Distribution" style={{ marginBottom: 24 }}>
+        <ResponsiveContainer width="100%" height={400}>
+          <PieChart>
+            <Pie
+              data={donutData}
+              cx="50%"
+              cy="50%"
+              innerRadius={80}
+              outerRadius={150}
+              paddingAngle={2}
+              dataKey="value"
+              label={({ name, percentage }) => `${name}: ${(percentage || 0).toFixed(1)}%`}
+            >
+              {donutData.map((entry, index) => (
+                <Cell key={`app-cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <RechartsTooltip
+              contentStyle={CHART_TOOLTIP_STYLE}
+              formatter={(value: number) => [formatBytes(value), 'Traffic']}
+            />
+            <Legend wrapperStyle={{ color: '#8ba3c1' }} />
+          </PieChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card
+        title="Application Details"
+        extra={
+          <Tag color="purple">
+            <AppstoreOutlined /> {data.length} Applications
+          </Tag>
+        }
+      >
+        <Table
+          columns={columns}
+          dataSource={data}
+          loading={loading}
+          rowKey={(record, index) => `app-${record.port || index}`}
+          pagination={{ pageSize: 20 }}
+          size="middle"
+        />
+      </Card>
+    </>
+  );
+}
+
+// -------------------------------------------------------------------
+// Main Component
+// -------------------------------------------------------------------
+export default function TopTalkers() {
+  const [activeTab, setActiveTab] = useState('by-device');
+  const [loading, setLoading] = useState(false);
+  const [timeRange, setTimeRange] = useState('1h');
+
+  // By Device state
+  const [topTalkers, setTopTalkers] = useState<any[]>([]);
+  const [protocols, setProtocols] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [trafficTrend, setTrafficTrend] = useState<any[]>([]);
+
+  // Top Senders state
+  const [sourceIPs, setSourceIPs] = useState<any[]>([]);
+
+  // Top Receivers state
+  const [destinationIPs, setDestinationIPs] = useState<any[]>([]);
+
+  // Applications state
+  const [applications, setApplications] = useState<any[]>([]);
+
+  // Track which tabs have been loaded for the current timeRange
+  const [loadedTabs, setLoadedTabs] = useState<Record<string, boolean>>({});
+
+  const fetchByDevice = useCallback(async () => {
+    const results = await Promise.allSettled([
+      apiService.getTopTalkers(10, timeRange, 'bytes'),
+      apiService.getTopProtocols(5, timeRange),
+      apiService.getTrafficStats(timeRange),
+    ]);
+
+    // Top Talkers
+    const talkersResult = results[0];
+    if (talkersResult.status === 'fulfilled' && talkersResult.value.success) {
+      const talkersData = talkersResult.value.data?.topTalkers || [];
+      const mapped = talkersData.map((item: any) => ({
+        source: item.device?.name || item.device?.ip || 'Unknown',
+        destination: '-',
+        protocol: '-',
+        bytes: item.traffic?.totalBytes || 0,
+        bandwidth: (item.traffic?.totalBytes || 0) / (1024 * 1024),
+        percentage: 0,
+        flowCount: item.traffic?.flowCount || 0,
+        totalPackets: item.traffic?.totalPackets || 0,
+        deviceType: item.device?.type,
+        deviceIp: item.device?.ip,
+        location: item.device?.location,
+      }));
+      const totalBytes = mapped.reduce((sum: number, t: any) => sum + t.bytes, 0);
+      mapped.forEach((t: any) => {
+        t.percentage = totalBytes > 0 ? (t.bytes / totalBytes) * 100 : 0;
+      });
+      setTopTalkers(mapped);
+    } else {
+      setTopTalkers([]);
+    }
+
+    // Protocols
+    const protocolsResult = results[1];
+    if (protocolsResult.status === 'fulfilled' && protocolsResult.value.success) {
+      const protocolsData = protocolsResult.value.data?.protocols || protocolsResult.value.data || [];
+      setProtocols(Array.isArray(protocolsData) ? protocolsData : []);
+    } else {
+      setProtocols([]);
+    }
+
+    // Traffic Stats
+    const statsResult = results[2];
+    if (statsResult.status === 'fulfilled' && statsResult.value.success) {
+      const statsData = statsResult.value.data;
+      if (statsData && Object.keys(statsData).length > 0) {
+        const totalGB = parseFloat(statsData.totalGB || '0');
+        setStats({
+          totalTraffic: totalGB,
+          inbound: (totalGB * 0.55).toFixed(2),
+          outbound: (totalGB * 0.45).toFixed(2),
+          activeDevices: statsData.activeDevices || 0,
+          protocolCount: statsData.protocolCount || 0,
+        });
+      } else {
+        setStats({ totalTraffic: 0, inbound: 0, outbound: 0, activeDevices: 0 });
+      }
+    } else {
+      setStats({ totalTraffic: 0, inbound: 0, outbound: 0, activeDevices: 0 });
+    }
+
+    // Traffic trend is not provided by the API yet; leave empty
+    setTrafficTrend([]);
+  }, [timeRange]);
+
+  const fetchSourceIPs = useCallback(async () => {
+    try {
+      const response = await apiService.getTopSourceIPs(20, timeRange);
+      if (response.success) {
+        setSourceIPs(response.data?.sourceIPs || []);
+      } else {
+        setSourceIPs([]);
+      }
+    } catch {
+      setSourceIPs([]);
+    }
+  }, [timeRange]);
+
+  const fetchDestinationIPs = useCallback(async () => {
+    try {
+      const response = await apiService.getTopDestinationIPs(20, timeRange);
+      if (response.success) {
+        setDestinationIPs(response.data?.destinationIPs || []);
+      } else {
+        setDestinationIPs([]);
+      }
+    } catch {
+      setDestinationIPs([]);
+    }
+  }, [timeRange]);
+
+  const fetchApplications = useCallback(async () => {
+    try {
+      const response = await apiService.getTopApplications(20, timeRange);
+      if (response.success) {
+        setApplications(response.data?.applications || []);
+      } else {
+        setApplications([]);
+      }
+    } catch {
+      setApplications([]);
+    }
+  }, [timeRange]);
+
+  const fetchActiveTabData = useCallback(async () => {
+    setLoading(true);
+    try {
+      switch (activeTab) {
+        case 'by-device':
+          await fetchByDevice();
+          break;
+        case 'top-senders':
+          await fetchSourceIPs();
+          break;
+        case 'top-receivers':
+          await fetchDestinationIPs();
+          break;
+        case 'applications':
+          await fetchApplications();
+          break;
+      }
+      setLoadedTabs((prev) => ({ ...prev, [activeTab]: true }));
+    } catch {
+      // Errors handled in individual fetchers
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, fetchByDevice, fetchSourceIPs, fetchDestinationIPs, fetchApplications]);
+
+  // Fetch data when the active tab changes (if not already loaded)
+  useEffect(() => {
+    if (!loadedTabs[activeTab]) {
+      fetchActiveTabData();
+    }
+  }, [activeTab, loadedTabs, fetchActiveTabData]);
+
+  // Reset loaded tabs and refetch when timeRange changes
+  useEffect(() => {
+    setLoadedTabs({});
+  }, [timeRange]);
+
+  const handleRefresh = () => {
+    setLoadedTabs({});
+    // The effect above will trigger fetchActiveTabData via the loadedTabs reset
+    // But we need to also trigger immediately for the current tab
+    setTimeout(() => fetchActiveTabData(), 0);
+  };
+
+  const tabItems = [
+    {
+      key: 'by-device',
+      label: (
+        <span>
+          <GlobalOutlined /> By Device
+        </span>
+      ),
+      children: (
+        <Spin spinning={loading && activeTab === 'by-device'}>
+          <ByDeviceTab
+            loading={loading && activeTab === 'by-device'}
+            topTalkers={topTalkers}
+            protocols={protocols}
+            stats={stats}
+            trafficTrend={trafficTrend}
+            timeRange={timeRange}
+          />
+        </Spin>
+      ),
+    },
+    {
+      key: 'top-senders',
+      label: (
+        <span>
+          <SendOutlined /> Top Senders
+        </span>
+      ),
+      children: (
+        <Spin spinning={loading && activeTab === 'top-senders'}>
+          <TopSendersTab loading={loading && activeTab === 'top-senders'} data={sourceIPs} />
+        </Spin>
+      ),
+    },
+    {
+      key: 'top-receivers',
+      label: (
+        <span>
+          <InboxOutlined /> Top Receivers
+        </span>
+      ),
+      children: (
+        <Spin spinning={loading && activeTab === 'top-receivers'}>
+          <TopReceiversTab loading={loading && activeTab === 'top-receivers'} data={destinationIPs} />
+        </Spin>
+      ),
+    },
+    {
+      key: 'applications',
+      label: (
+        <span>
+          <AppstoreOutlined /> Applications
+        </span>
+      ),
+      children: (
+        <Spin spinning={loading && activeTab === 'applications'}>
+          <ApplicationsTab loading={loading && activeTab === 'applications'} data={applications} />
+        </Spin>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      {/* Page Header */}
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2}>Top Talkers - Bandwidth Analysis</Title>
+        <Text type="secondary">Real-time network traffic analysis and bandwidth monitoring</Text>
+      </div>
+
+      {/* Shared Filters */}
+      <Card style={{ marginBottom: 16 }}>
+        <Space wrap>
+          <Select value={timeRange} onChange={setTimeRange} style={{ width: 150 }}>
+            <Option value="1h">Last 1 Hour</Option>
+            <Option value="24h">Last 24 Hours</Option>
+            <Option value="7d">Last 7 Days</Option>
+            <Option value="30d">Last 30 Days</Option>
+          </Select>
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={loading}>
+            Refresh
+          </Button>
+        </Space>
+      </Card>
+
+      {/* Tabbed Views */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        type="card"
+        size="large"
+        items={tabItems}
+      />
     </div>
   );
 }

@@ -108,6 +108,60 @@ export class TopTalkersController {
   }
 
   /**
+   * Get top source IPs (top senders)
+   * GET /api/v1/monitoring/top-talkers/source-ips?limit=10&timeRange=1h
+   */
+  @Get('source-ips')
+  @Permissions('dashboard:read')
+  @UseGuards(RbacGuard)
+  async getTopSourceIPs(
+    @Query('limit') limit?: string,
+    @Query('timeRange') timeRange?: '1h' | '24h' | '7d',
+  ) {
+    const data = await this.topTalkersService.getTopSourceIPs(
+      limit ? parseInt(limit) : 10,
+      timeRange || '1h',
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * Get top destination IPs (top receivers)
+   * GET /api/v1/monitoring/top-talkers/destination-ips?limit=10&timeRange=1h
+   */
+  @Get('destination-ips')
+  @Permissions('dashboard:read')
+  @UseGuards(RbacGuard)
+  async getTopDestinationIPs(
+    @Query('limit') limit?: string,
+    @Query('timeRange') timeRange?: '1h' | '24h' | '7d',
+  ) {
+    const data = await this.topTalkersService.getTopDestinationIPs(
+      limit ? parseInt(limit) : 10,
+      timeRange || '1h',
+    );
+    return { success: true, data };
+  }
+
+  /**
+   * Get top applications (by port)
+   * GET /api/v1/monitoring/top-talkers/applications?limit=10&timeRange=1h
+   */
+  @Get('applications')
+  @Permissions('dashboard:read')
+  @UseGuards(RbacGuard)
+  async getTopApplications(
+    @Query('limit') limit?: string,
+    @Query('timeRange') timeRange?: '1h' | '24h' | '7d',
+  ) {
+    const data = await this.topTalkersService.getTopApplications(
+      limit ? parseInt(limit) : 10,
+      timeRange || '1h',
+    );
+    return { success: true, data };
+  }
+
+  /**
    * Get device traffic details
    * GET /api/v1/monitoring/top-talkers/device/:id?timeRange=24h
    */
