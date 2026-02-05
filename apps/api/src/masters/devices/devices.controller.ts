@@ -14,12 +14,14 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { DevicesService } from './devices.service';
 import type { CreateDeviceDto } from './devices.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RbacGuard } from '../../rbac/guards/rbac.guard';
 import { Permissions, UserId } from '../../rbac/decorators/rbac.decorators';
 
+@ApiTags('masters')
 @Controller('api/v1/masters/devices')
 @UseGuards(JwtAuthGuard)
 export class DevicesController {

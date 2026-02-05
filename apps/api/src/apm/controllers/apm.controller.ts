@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Query, Body, Param, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { HealthService } from '../services/health.service';
 import { TransactionService } from '../services/transaction.service';
 import { MetricsService } from '../services/metrics.service';
 
+@ApiTags('apm')
 @Controller('apm')
 export class APMController {
   private readonly logger = new Logger(APMController.name);

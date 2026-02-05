@@ -12,11 +12,13 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RbacGuard } from '../../rbac/guards/rbac.guard';
 import { Permissions } from '../../rbac/decorators/rbac.decorators';
 
+@ApiTags('monitoring')
 @Controller('api/v1/monitoring/dashboard')
 @UseGuards(JwtAuthGuard)
 export class DashboardController {

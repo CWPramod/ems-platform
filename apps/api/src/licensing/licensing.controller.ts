@@ -6,26 +6,17 @@ import {
   Param,
   UseGuards,
   Req,
-  HttpStatus,
-  Res,
+  BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
-import type { Request, Response } from 'express';
+import { ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LicensingService } from './licensing.service';
 import { LicenseValidationService } from './license-validation.service';
 import { LicenseType, LicenseTier } from '../entities/license.entity';
-
-interface ActivateLicenseDto {
-  licenseKey: string;
-  organizationName?: string;
-}
-
-interface GenerateKeyDto {
-  type: 'trial' | 'subscription' | 'perpetual';
-  tier: 'nms_only' | 'ems_full';
-  maxDevices: number;
-  durationDays: number;
-}
+import { ActivateLicenseDto } from './dto/activate-license.dto';
+import { GenerateKeyDto } from './dto/generate-key.dto';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -36,6 +27,7 @@ interface AuthenticatedRequest extends Request {
   };
 }
 
+@ApiTags('licensing')
 @Controller('api/v1/licenses')
 export class LicensingController {
   constructor(
@@ -44,7 +36,7 @@ export class LicensingController {
   ) {}
 
   /**
-   * GET /api/v1/licenses/status - Get current license status (public for frontend banner)
+   * GET /api/v1/licenses/status - Get current license status
    */
   @Get('status')
   @UseGuards(JwtAuthGuard)
@@ -72,7 +64,7 @@ export class LicensingController {
   }
 
   /**
-   * GET /api/v1/licenses - List all licenses (admin)
+   * GET /api/v1/licenses - List all licenses
    */
   @Get()
   @UseGuards(JwtAuthGuard)
@@ -82,7 +74,7 @@ export class LicensingController {
   }
 
   /**
-   * GET /api/v1/licenses/:id - Get license details (admin)
+   * GET /api/v1/licenses/:id - Get license details
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard)
@@ -92,59 +84,38 @@ export class LicensingController {
   }
 
   /**
-   * POST /api/v1/licenses/activate - Activate a new license key
+   * POST /api/v1/licenses/activate - Activate a license key
    */
   @Post('activate')
   @UseGuards(JwtAuthGuard)
   async activateLicense(
     @Body() dto: ActivateLicenseDto,
     @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
   ) {
     try {
-      if (!dto.licenseKey) {
-        return res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: 'License key is required.',
-        });
-      }
-
       const license = await this.licensingService.activate(
         dto.licenseKey,
         dto.organizationName,
         req.user.username,
       );
 
-      return res.json({
+      return {
         success: true,
         message: 'License activated successfully.',
         data: license,
-      });
+      };
     } catch (error: any) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error.message || 'Failed to activate license.',
-      });
+      throw new BadRequestException(error.message || 'Failed to activate license.');
     }
   }
 
   /**
-   * POST /api/v1/licenses/generate-key - Generate a license key (admin utility)
+   * POST /api/v1/licenses/generate-key - Generate a license key
    */
   @Post('generate-key')
   @UseGuards(JwtAuthGuard)
-  async generateKey(
-    @Body() dto: GenerateKeyDto,
-    @Res() res: Response,
-  ) {
+  async generateKey(@Body() dto: GenerateKeyDto) {
     try {
-      if (!dto.type || !dto.tier || !dto.maxDevices || !dto.durationDays) {
-        return res.status(HttpStatus.BAD_REQUEST).json({
-          success: false,
-          message: 'type, tier, maxDevices, and durationDays are required.',
-        });
-      }
-
       const typeMap: Record<string, LicenseType> = {
         trial: LicenseType.TRIAL,
         subscription: LicenseType.SUBSCRIPTION,
@@ -162,45 +133,38 @@ export class LicensingController {
         durationDays: dto.durationDays,
       });
 
-      return res.json({
+      return {
         success: true,
         data: { licenseKey: key },
-      });
+      };
     } catch (error: any) {
-      return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-        success: false,
-        message: error.message || 'Failed to generate key.',
-      });
+      throw new InternalServerErrorException(error.message || 'Failed to generate key.');
     }
   }
 
   /**
-   * POST /api/v1/licenses/:id/revoke - Revoke a license (admin)
+   * POST /api/v1/licenses/:id/revoke - Revoke a license
    */
   @Post(':id/revoke')
   @UseGuards(JwtAuthGuard)
   async revokeLicense(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
-    @Res() res: Response,
   ) {
     try {
       const license = await this.licensingService.revoke(id, req.user.username);
-      return res.json({
+      return {
         success: true,
         message: 'License revoked.',
         data: license,
-      });
+      };
     } catch (error: any) {
-      return res.status(HttpStatus.BAD_REQUEST).json({
-        success: false,
-        message: error.message || 'Failed to revoke license.',
-      });
+      throw new BadRequestException(error.message || 'Failed to revoke license.');
     }
   }
 
   /**
-   * GET /api/v1/licenses/:id/audit-log - Get audit log for a license
+   * GET /api/v1/licenses/:id/audit-log - Get audit log
    */
   @Get(':id/audit-log')
   @UseGuards(JwtAuthGuard)

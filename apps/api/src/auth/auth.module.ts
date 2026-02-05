@@ -22,7 +22,7 @@ import { Role } from '../entities/role.entity';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET') || 'your-secret-key-change-in-production',
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: { 
           expiresIn: configService.get('JWT_EXPIRES_IN') || '8h' 
         },

@@ -11,11 +11,13 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { ReportsService } from './reports.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RbacGuard } from '../../rbac/guards/rbac.guard';
 import { Permissions } from '../../rbac/decorators/rbac.decorators';
 
+@ApiTags('reporting')
 @Controller('api/v1/reporting/reports')
 @UseGuards(JwtAuthGuard)
 export class ReportsController {

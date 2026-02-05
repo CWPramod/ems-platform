@@ -9,17 +9,25 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { AlertsService } from './alerts.service';
 import { Alert, AlertStatus } from '../entities/alert.entity';
+import { CreateAlertDto } from './dto/create-alert.dto';
+import {
+  AcknowledgeAlertDto,
+  ResolveAlertDto,
+  UpdateBusinessImpactDto,
+} from './dto/update-alert-status.dto';
 
+@ApiTags('alerts')
 @Controller('alerts')
 export class AlertsController {
   constructor(private readonly alertsService: AlertsService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() alertData: Partial<Alert>): Promise<Alert> {
-    return await this.alertsService.create(alertData);
+  async create(@Body() createAlertDto: CreateAlertDto): Promise<Alert> {
+    return await this.alertsService.create(createAlertDto);
   }
 
   @Get()
@@ -57,18 +65,18 @@ export class AlertsController {
   @HttpCode(HttpStatus.OK)
   async acknowledge(
     @Param('id') id: string,
-    @Body('owner') owner: string,
+    @Body() dto: AcknowledgeAlertDto,
   ): Promise<Alert> {
-    return await this.alertsService.acknowledge(id, owner);
+    return await this.alertsService.acknowledge(id, dto.owner);
   }
 
   @Post(':id/resolve')
   @HttpCode(HttpStatus.OK)
   async resolve(
     @Param('id') id: string,
-    @Body() resolutionData: { resolutionNotes?: string; resolutionCategory?: string },
+    @Body() dto: ResolveAlertDto,
   ): Promise<Alert> {
-    return await this.alertsService.resolve(id, resolutionData);
+    return await this.alertsService.resolve(id, dto);
   }
 
   @Post(':id/close')
@@ -80,12 +88,8 @@ export class AlertsController {
   @Patch(':id/business-impact')
   async updateBusinessImpact(
     @Param('id') id: string,
-    @Body() impactData: {
-      businessImpactScore: number;
-      affectedUsers?: number;
-      revenueAtRisk?: number;
-    },
+    @Body() dto: UpdateBusinessImpactDto,
   ): Promise<Alert> {
-    return await this.alertsService.updateBusinessImpact(id, impactData);
+    return await this.alertsService.updateBusinessImpact(id, dto);
   }
 }

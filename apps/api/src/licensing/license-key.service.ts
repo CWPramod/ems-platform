@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { LicenseType, LicenseTier } from '../entities/license.entity';
 
@@ -6,9 +7,8 @@ import { LicenseType, LicenseTier } from '../entities/license.entity';
 export class LicenseKeyService {
   private readonly signingSecret: string;
 
-  constructor() {
-    this.signingSecret =
-      process.env.LICENSE_SIGNING_SECRET || 'canaris-license-secret-change-in-production';
+  constructor(private configService: ConfigService) {
+    this.signingSecret = this.configService.get<string>('LICENSE_SIGNING_SECRET')!;
   }
 
   /**

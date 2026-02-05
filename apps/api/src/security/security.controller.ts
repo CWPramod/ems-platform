@@ -9,6 +9,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { SslAnalysisService } from './services/ssl-analysis.service';
 import { IocMonitoringService } from './services/ioc-monitoring.service';
 import { SignatureDetectionService } from './services/signature-detection.service';
@@ -26,6 +27,7 @@ import {
   DdosSeverity,
 } from '../entities/ddos-event.entity';
 
+@ApiTags('security')
 @Controller('api/v1/security')
 export class SecurityController {
   constructor(

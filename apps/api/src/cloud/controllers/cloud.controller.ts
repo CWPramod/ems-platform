@@ -1,8 +1,10 @@
 import { Controller, Get, Post, Query, Body, Logger } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { EC2Service } from '../services/ec2.service';
 import { RDSService } from '../services/rds.service';
 import { CloudWatchService } from '../services/cloudwatch.service';
 
+@ApiTags('cloud')
 @Controller('cloud')
 export class CloudController {
   private readonly logger = new Logger(CloudController.name);

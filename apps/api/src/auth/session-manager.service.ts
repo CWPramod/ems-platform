@@ -2,7 +2,7 @@
 // Handles user sessions and timeouts
 // apps/api/src/auth/session-manager.service.ts
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -23,6 +23,7 @@ export interface UserSession {
 
 @Injectable()
 export class SessionManagerService {
+  private readonly logger = new Logger(SessionManagerService.name);
   private readonly SESSION_TIMEOUT_MINUTES = 30;
   private readonly WARNING_BEFORE_TIMEOUT_MINUTES = 5;
 
@@ -158,7 +159,7 @@ export class SessionManagerService {
     tokensToDelete.forEach((token) => this.sessions.delete(token));
 
     if (tokensToDelete.length > 0) {
-      console.log(`Cleaned up ${tokensToDelete.length} expired sessions`);
+      this.logger.log(`Cleaned up ${tokensToDelete.length} expired sessions`);
     }
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert, AlertStatus } from '../entities/alert.entity';
@@ -6,6 +6,8 @@ import { MLIntegrationService } from '../services/ml-integration.service';
 
 @Injectable()
 export class AlertsService {
+  private readonly logger = new Logger(AlertsService.name);
+
   constructor(
     @InjectRepository(Alert)
     private alertsRepository: Repository<Alert>,
@@ -36,7 +38,7 @@ export class AlertsService {
           alert.revenueAtRisk = impactResult.revenue_at_risk;
         }
       } catch (error) {
-        console.log('ML enhancement failed, creating alert without ML data');
+        this.logger.warn('ML enhancement failed, creating alert without ML data');
       }
     }
 

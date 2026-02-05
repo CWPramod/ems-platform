@@ -2,7 +2,7 @@
 // Handles user authentication and validation
 // apps/api/src/auth/auth.service.ts
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +11,8 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private userRepo: Repository<User>,
@@ -110,7 +112,7 @@ export class AuthService {
   ): Promise<void> {
     // Optional: Log to login_audit_log table
     // You can implement this later if needed
-    console.log(`Login attempt: ${username} - ${status} from ${ip}`);
+    this.logger.log(`Login attempt: ${username} - ${status} from ${ip}`);
   }
 
   async findUserById(userId: number): Promise<User | null> {

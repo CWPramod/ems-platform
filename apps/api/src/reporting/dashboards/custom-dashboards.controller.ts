@@ -1,10 +1,12 @@
 // Custom Dashboards Controller
 import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { ApiTags } from '@nestjs/swagger';
 import { CustomDashboardsService } from './custom-dashboards.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RbacGuard } from '../../rbac/guards/rbac.guard';
 import { Permissions } from '../../rbac/decorators/rbac.decorators';
 
+@ApiTags('reporting')
 @Controller('api/v1/reporting/dashboards')
 @UseGuards(JwtAuthGuard)
 export class CustomDashboardsController {
