@@ -400,6 +400,88 @@ Navigate to **Masters > Thresholds** to customize alerting:
 | Packet Loss | 1% | 5% |
 | Latency | 50ms | 100ms |
 
+### 7.4 Data Mode Configuration (Demo vs Production)
+
+The EMS Platform supports two data modes controlled by the `DATA_MODE` environment variable:
+
+#### Mode Comparison
+
+| Mode | `DATA_MODE` | `SNMP_MODE` | Use Case |
+|------|-------------|-------------|----------|
+| **Demo** | `demo` | `simulation` | Client demos, testing, development |
+| **Production** | `production` | `production` | Real network monitoring |
+
+#### What Each Mode Controls
+
+| Service | Demo Mode (`DATA_MODE=demo`) | Production Mode (`DATA_MODE=production`) |
+|---------|------------------------------|------------------------------------------|
+| **Security Simulator** | Generates fake IOC matches, signature alerts, DDoS events every 2-5 minutes | **Disabled** - No simulated security events |
+| **Traffic Flow Generator** | Generates simulated traffic flows for Top Talkers | Only aggregates real SNMP bandwidth data |
+| **Alert Generator** | Runs (monitors simulated health data) | Runs (monitors real SNMP health data) |
+| **SNMP Monitor** | Generates simulated device metrics | Collects real SNMP data from devices |
+
+#### Switching Modes
+
+**For Client Demos:**
+```bash
+# .env file
+DATA_MODE=demo
+SNMP_MODE=simulation
+```
+This generates realistic-looking demo data across all modules:
+- Dashboard shows active devices with varying health
+- Security page shows IOC matches, signature alerts, DDoS events
+- Top Talkers shows traffic between simulated devices
+- Alerts are generated based on threshold violations
+
+**For Production Deployment:**
+```bash
+# .env file
+DATA_MODE=production
+SNMP_MODE=production
+```
+This ensures:
+- Only real SNMP data is collected from actual network devices
+- No fake security events are generated
+- Alerts are based on actual device health metrics
+- Traffic data is aggregated from real SNMP bandwidth counters
+
+#### Services Behavior Matrix
+
+```
+┌─────────────────────────┬────────────────────────────┬────────────────────────────┐
+│ Service                 │ DATA_MODE=demo             │ DATA_MODE=production       │
+├─────────────────────────┼────────────────────────────┼────────────────────────────┤
+│ SecuritySimulatorService│                            │                            │
+│  - simulateIocMatches() │ Runs every 3 min           │ SKIPPED                    │
+│  - simulateSignatureAl..│ Runs every 30 sec          │ SKIPPED                    │
+│  - simulateDdosEvents() │ Runs every 2 min           │ SKIPPED                    │
+│  - updateSslCertificat..│ Runs every 5 min           │ Runs every 5 min           │
+├─────────────────────────┼────────────────────────────┼────────────────────────────┤
+│ TrafficFlowGeneratorSer.│                            │                            │
+│  - generateTrafficFlows │ Generates simulated flows  │ Aggregates real traffic    │
+├─────────────────────────┼────────────────────────────┼────────────────────────────┤
+│ AlertGeneratorService   │                            │                            │
+│  - checkForAlerts()     │ Monitors health data       │ Monitors health data       │
+├─────────────────────────┼────────────────────────────┼────────────────────────────┤
+│ SnmpMonitorService      │                            │                            │
+│  - pollDevices()        │ Controlled by SNMP_MODE    │ Controlled by SNMP_MODE    │
+└─────────────────────────┴────────────────────────────┴────────────────────────────┘
+```
+
+#### Verifying Current Mode
+
+Check the API logs on startup:
+```bash
+docker compose logs api | grep "initialized"
+
+# Expected output:
+# Security Simulator initialized in DEMO mode
+# Traffic Flow Generator initialized - SNMP_MODE: SIMULATION, DATA_MODE: DEMO
+# Alert Generator initialized in DEMO mode
+# SNMP Monitor initialized in SIMULATION mode
+```
+
 ---
 
 ## 8. Database Setup
