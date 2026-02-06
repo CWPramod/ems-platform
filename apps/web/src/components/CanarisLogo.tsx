@@ -46,7 +46,6 @@ export default function CanarisLogo({ size = 'md', collapsed = false }: CanarisL
         height: dims.height,
         maxWidth: dims.maxWidth,
         objectFit: 'contain',
-        filter: 'brightness(0) invert(1)',
       }}
     />
   );

@@ -162,21 +162,39 @@ export class ReportsController {
     @Query('limit') limit?: string,
   ) {
     const filters: any = {};
-    
+
     if (reportDefId) {
       filters.reportDefId = parseInt(reportDefId);
     }
-    
+
     if (limit) {
       filters.limit = parseInt(limit);
     }
 
     const history = await this.reportsService.getReportHistory(filters);
-    
+
+    // Transform to match frontend expectations
+    const transformedHistory = history.map((h) => ({
+      id: h.id,
+      type: h.reportType,
+      name: h.reportName,
+      format: h.format,
+      status: h.status,
+      startDate: h.parameters?.startDate,
+      endDate: h.parameters?.endDate,
+      tier: h.parameters?.tier || 'All',
+      location: h.parameters?.location || 'All Locations',
+      totalDevices: h.rowCount,
+      compliance: h.parameters?.compliance,
+      avgUptime: h.parameters?.avgUptime,
+      generatedAt: h.createdAt,
+      durationSeconds: h.durationSeconds,
+    }));
+
     return {
       success: true,
-      data: history,
-      count: history.length,
+      data: transformedHistory,
+      count: transformedHistory.length,
     };
   }
 

@@ -193,8 +193,11 @@ async function seed() {
     // ── 7. Device Health ────────────────────────────────────────────────────
     console.log('💊 Seeding device health (20)...');
     for (let i = 0; i < assetIds.length; i++) {
+      const tier = assets[i].tier;
       const score = statuses[i] === 'offline' ? 0 : statuses[i] === 'warning' ? randomBetween(45, 65) : randomBetween(70, 98);
       const status = statuses[i] === 'offline' ? 'offline' : score > 80 ? 'online' : score > 60 ? 'warning' : 'critical';
+      // isCritical should be based on tier (Tier 1 = critical infrastructure), not health score
+      const isCritical = tier === 1;
       await qr.query(`
         INSERT INTO device_health (id, asset_id, status, health_score, is_critical, last_seen, response_time_ms,
           cpu_utilization, memory_utilization, disk_utilization, bandwidth_in_mbps, bandwidth_out_mbps,
@@ -203,7 +206,7 @@ async function seed() {
           uptime_percent_24h, uptime_percent_7d, uptime_percent_30d, sla_compliance, sla_target_percent, last_health_check)
         VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7, $8, $9, $10, $11, $12, $13, 2, $14, $15, $16, $17, $18, $19, $20, $21, $22, 99.9, NOW())
       `, [
-        i + 1, assetIds[i], status, score, score < 50,
+        i + 1, assetIds[i], status, score, isCritical,
         Math.round(randomBetween(1, 50)),
         randomBetween(15, 85), randomBetween(30, 80), randomBetween(20, 70),
         randomBetween(50, 500), randomBetween(30, 300),
@@ -463,6 +466,41 @@ async function seed() {
     `);
     await qr.query(`SELECT setval('report_definitions_id_seq', 3)`);
 
+    // ── 20a. Report History (12 sample reports) ────────────────────────────
+    console.log('📊 Seeding report history (12)...');
+    const reportHistoryData = [
+      // SLA Reports
+      { defId: 1, type: 'SLA', name: 'SLA Compliance - January', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: 1, location: 'All' }, status: 'completed', rows: 9, compliance: 98.5, avgUptime: 99.2 },
+      { defId: 1, type: 'SLA', name: 'SLA Compliance - December', params: { startDate: '2025-12-01', endDate: '2025-12-31', tier: 1, location: 'All' }, status: 'completed', rows: 9, compliance: 97.8, avgUptime: 98.9 },
+      { defId: 1, type: 'SLA', name: 'SLA Compliance - Mumbai DC', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: null, location: 'Mumbai DC - Rack A1' }, status: 'completed', rows: 5, compliance: 99.1, avgUptime: 99.5 },
+      // Uptime Reports
+      { defId: 1, type: 'Uptime', name: 'Uptime Report - Week 5', params: { startDate: '2026-01-27', endDate: '2026-02-02', tier: null, location: 'All' }, status: 'completed', rows: 20, compliance: null, avgUptime: 99.4 },
+      { defId: 1, type: 'Uptime', name: 'Uptime Report - Week 4', params: { startDate: '2026-01-20', endDate: '2026-01-26', tier: null, location: 'All' }, status: 'completed', rows: 20, compliance: null, avgUptime: 98.7 },
+      { defId: 1, type: 'Uptime', name: 'Uptime Report - Tier 1', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: 1, location: 'All' }, status: 'completed', rows: 9, compliance: null, avgUptime: 99.6 },
+      // Performance Reports
+      { defId: 2, type: 'Performance', name: 'Performance Summary - Jan', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: null, location: 'All', deviceType: null }, status: 'completed', rows: 20, compliance: null, avgUptime: null },
+      { defId: 2, type: 'Performance', name: 'Server Performance', params: { startDate: '2026-01-15', endDate: '2026-02-05', tier: null, location: 'All', deviceType: 'server' }, status: 'completed', rows: 4, compliance: null, avgUptime: null },
+      { defId: 2, type: 'Performance', name: 'Network Devices Perf', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: null, location: 'All', deviceType: 'router' }, status: 'completed', rows: 4, compliance: null, avgUptime: null },
+      // Traffic Reports
+      { defId: 1, type: 'Traffic', name: 'Traffic Analysis - January', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: null, location: 'All', deviceType: null }, status: 'completed', rows: 20, compliance: null, avgUptime: null },
+      { defId: 1, type: 'Traffic', name: 'Traffic - Tier 1 Only', params: { startDate: '2026-01-15', endDate: '2026-02-05', tier: 1, location: 'All', deviceType: null }, status: 'completed', rows: 9, compliance: null, avgUptime: null },
+      { defId: 1, type: 'Traffic', name: 'Mumbai DC Traffic', params: { startDate: '2026-01-01', endDate: '2026-01-31', tier: null, location: 'Mumbai DC - Rack A1', deviceType: null }, status: 'completed', rows: 5, compliance: null, avgUptime: null },
+    ];
+    for (let i = 0; i < reportHistoryData.length; i++) {
+      const r = reportHistoryData[i];
+      const genAt = hoursAgo((i + 1) * 24 + Math.random() * 12); // Spread across past days
+      await qr.query(`
+        INSERT INTO report_history (id, report_definition_id, report_name, report_type, format, status, start_time, end_time, duration_seconds, row_count, parameters, generated_by, is_scheduled, created_at)
+        VALUES ($1, $2, $3, $4, 'pdf', $5, $6, $7, $8, $9, $10, 1, false, $7)
+      `, [
+        i + 1, r.defId, r.name, r.type, r.status,
+        new Date(genAt.getTime() - 5000), genAt, Math.floor(Math.random() * 10) + 2,
+        r.rows,
+        JSON.stringify({ ...r.params, compliance: r.compliance, avgUptime: r.avgUptime }),
+      ]);
+    }
+    await qr.query(`SELECT setval('report_history_id_seq', ${reportHistoryData.length})`);
+
     // ── 21. Dashboard Configurations ────────────────────────────────────────
     console.log('📋 Seeding dashboard configurations (2)...');
     await qr.query(`
@@ -484,7 +522,7 @@ async function seed() {
     console.log('   Events: 15 | Alerts: 8');
     console.log('   SSL Certs: 8 | IOCs: 10 | Sig Alerts: 10 | DDoS: 5');
     console.log('   License: 1 | Audit Logs: 3');
-    console.log('   Reports: 3 | Dashboards: 2');
+    console.log('   Report Definitions: 3 | Report History: 12 | Dashboards: 2');
     console.log('');
     console.log('   Login: admin / Admin@123456');
 

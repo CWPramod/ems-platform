@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, Card, Typography, Space, Divider, Alert } from 'antd';
+import { Form, Input, Button, Card, Typography, Divider, Alert } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
 import CanarisLogo from '../components/CanarisLogo';
@@ -167,20 +167,6 @@ export default function Login() {
             </Button>
           </Form.Item>
         </Form>
-
-        <Divider style={{ borderColor: '#1e3a5f' }} />
-
-        {/* Demo Credentials */}
-        <div style={{ textAlign: 'center' }}>
-          <Space direction="vertical" size="small">
-            <Text style={{ fontSize: '12px', color: '#5c7a99' }}>
-              Demo Credentials:
-            </Text>
-            <Text code style={{ fontSize: '12px', background: '#0a1628', color: '#8ba3c1', borderColor: '#1e3a5f' }}>
-              Username: admin | Password: Admin@123456
-            </Text>
-          </Space>
-        </div>
 
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
