@@ -26,7 +26,8 @@ const PROTOCOLS = [
 @Injectable()
 export class TrafficFlowGeneratorService {
   private readonly logger = new Logger(TrafficFlowGeneratorService.name);
-  private readonly mode: string;
+  private readonly snmpMode: string;
+  private readonly dataMode: string;
   private flowCache: Map<string, any> = new Map();
 
   constructor(
@@ -37,22 +38,31 @@ export class TrafficFlowGeneratorService {
     @InjectRepository(DeviceHealth)
     private deviceHealthRepository: Repository<DeviceHealth>,
   ) {
-    this.mode = process.env.SNMP_MODE || 'simulation';
-    this.logger.log(`Traffic Flow Generator initialized in ${this.mode.toUpperCase()} mode`);
+    this.snmpMode = process.env.SNMP_MODE || 'simulation';
+    this.dataMode = process.env.DATA_MODE || 'demo';
+    this.logger.log(`Traffic Flow Generator initialized - SNMP_MODE: ${this.snmpMode.toUpperCase()}, DATA_MODE: ${this.dataMode.toUpperCase()}`);
   }
 
   /**
    * Generate traffic flows every 30 seconds
+   * In demo mode: generates simulated traffic flows
+   * In production mode: aggregates real traffic from SNMP data
    */
   @Cron(CronExpression.EVERY_30_SECONDS)
   async generateTrafficFlows() {
-    this.logger.log('Generating traffic flows...');
+    this.logger.log(`Generating traffic flows (DATA_MODE: ${this.dataMode})...`);
 
     try {
-      if (this.mode === 'simulation') {
-        await this.generateSimulatedFlows();
-      } else {
+      // In production mode, only aggregate real traffic
+      if (this.dataMode === 'production') {
         await this.aggregateRealTraffic();
+      } else {
+        // Demo mode: generate simulated flows or aggregate based on SNMP_MODE
+        if (this.snmpMode === 'simulation') {
+          await this.generateSimulatedFlows();
+        } else {
+          await this.aggregateRealTraffic();
+        }
       }
 
       this.logger.log('Traffic flows generated successfully');
@@ -308,7 +318,10 @@ export class TrafficFlowGeneratorService {
   /**
    * Get current mode
    */
-  getMode(): string {
-    return this.mode;
+  getMode(): { snmpMode: string; dataMode: string } {
+    return {
+      snmpMode: this.snmpMode,
+      dataMode: this.dataMode,
+    };
   }
 }

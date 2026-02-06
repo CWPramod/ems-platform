@@ -38,4 +38,9 @@ export const envValidationSchema = Joi.object({
 
   // SNMP
   SNMP_MODE: Joi.string().valid('simulation', 'production').default('simulation'),
+
+  // Data Mode - controls simulation services
+  // 'demo' = generate fake events/alerts for demos
+  // 'production' = only real data, no simulated events
+  DATA_MODE: Joi.string().valid('demo', 'production').default('demo'),
 });

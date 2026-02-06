@@ -27,6 +27,7 @@ const THRESHOLDS = {
 @Injectable()
 export class AlertGeneratorService {
   private readonly logger = new Logger(AlertGeneratorService.name);
+  private readonly dataMode: string;
   private lastAlerts: Map<string, Date> = new Map(); // Prevent duplicate alerts
 
   constructor(
@@ -38,14 +39,20 @@ export class AlertGeneratorService {
     private assetRepository: Repository<Asset>,
     @InjectRepository(DeviceHealth)
     private healthRepository: Repository<DeviceHealth>,
-  ) {}
+  ) {
+    this.dataMode = process.env.DATA_MODE || 'demo';
+    this.logger.log(`Alert Generator initialized in ${this.dataMode.toUpperCase()} mode`);
+  }
 
   /**
    * Check for alerts every minute
+   * Note: Runs in both demo and production modes.
+   * In demo mode, alerts are based on simulated health data.
+   * In production mode, alerts are based on real SNMP-collected health data.
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async checkForAlerts() {
-    this.logger.log('Checking for alert conditions...');
+    this.logger.log(`Checking for alert conditions (${this.dataMode} mode)...`);
 
     try {
       // Get all devices

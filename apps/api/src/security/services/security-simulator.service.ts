@@ -30,6 +30,7 @@ import {
 @Injectable()
 export class SecuritySimulatorService implements OnModuleInit {
   private readonly logger = new Logger(SecuritySimulatorService.name);
+  private readonly dataMode: string;
   private initialized = false;
 
   constructor(
@@ -41,7 +42,17 @@ export class SecuritySimulatorService implements OnModuleInit {
     private sigRepo: Repository<SignatureAlert>,
     @InjectRepository(DdosEvent)
     private ddosRepo: Repository<DdosEvent>,
-  ) {}
+  ) {
+    this.dataMode = process.env.DATA_MODE || 'demo';
+    this.logger.log(`Security Simulator initialized in ${this.dataMode.toUpperCase()} mode`);
+  }
+
+  /**
+   * Check if simulation is enabled (DATA_MODE=demo)
+   */
+  private isSimulationEnabled(): boolean {
+    return this.dataMode === 'demo';
+  }
 
   async onModuleInit() {
     // Small delay to let DB synchronize
@@ -194,6 +205,7 @@ export class SecuritySimulatorService implements OnModuleInit {
 
   @Cron('0 */5 * * * *') // every 5 minutes
   async updateSslCertificates(): Promise<void> {
+    // SSL certificate expiry updates run in both modes (just updates existing data)
     try {
       const certs = await this.sslRepo.find();
       if (certs.length === 0) return;
@@ -287,6 +299,8 @@ export class SecuritySimulatorService implements OnModuleInit {
 
   @Cron('0 */3 * * * *') // every 3 minutes
   async simulateIocMatches(): Promise<void> {
+    if (!this.isSimulationEnabled()) return;
+
     try {
       const activeIocs = await this.iocRepo.find({
         where: { status: IocStatus.ACTIVE },
@@ -347,6 +361,8 @@ export class SecuritySimulatorService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_30_SECONDS)
   async simulateSignatureAlerts(): Promise<void> {
+    if (!this.isSimulationEnabled()) return;
+
     try {
       const count = this.randInt(2, 5);
       const alerts: Partial<SignatureAlert>[] = [];
@@ -448,6 +464,8 @@ export class SecuritySimulatorService implements OnModuleInit {
 
   @Cron('0 */2 * * * *') // every 2 minutes
   async simulateDdosEvents(): Promise<void> {
+    if (!this.isSimulationEnabled()) return;
+
     try {
       // 20% chance of new event
       if (Math.random() > 0.2) {
