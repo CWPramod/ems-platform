@@ -1,7 +1,7 @@
-// Canaris Logo Component
+// Nesecure Logo Component
 // Reusable across sidebar and login page
 
-import canarisLogo from '../assets/canaris-logo.jpg';
+import nesecureLogo from '../assets/nesecure-logo.jpeg';
 
 interface CanarisLogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -33,15 +33,15 @@ export default function CanarisLogo({ size = 'md', collapsed = false }: CanarisL
         fontFamily: "'Inter', sans-serif",
         letterSpacing: '-1px',
       }}>
-        C
+        N
       </div>
     );
   }
 
   return (
     <img
-      src={canarisLogo}
-      alt="CANARIS"
+      src={nesecureLogo}
+      alt="Nesecure"
       style={{
         height: dims.height,
         maxWidth: dims.maxWidth,

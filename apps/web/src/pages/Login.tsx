@@ -1,5 +1,5 @@
 // Professional Login Page — Dark Blue Theme
-// Enterprise-grade login with CANARIS branding
+// Enterprise-grade login with Nesecure branding
 // apps/web/src/pages/Login.tsx
 
 import { useState } from 'react';
@@ -171,7 +171,7 @@ export default function Login() {
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
           <Text style={{ fontSize: '12px', color: '#3d5a7a' }}>
-            &copy; 2026 CANARIS. All rights reserved.
+            &copy; 2026 Nesecure. All rights reserved.
           </Text>
         </div>
       </Card>
