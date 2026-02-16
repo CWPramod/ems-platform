@@ -43,4 +43,7 @@ export const envValidationSchema = Joi.object({
   // 'demo' = generate fake events/alerts for demos
   // 'production' = only real data, no simulated events
   DATA_MODE: Joi.string().valid('demo', 'production').default('demo'),
+
+  // Remote Probe Agent
+  PROBE_API_KEY: Joi.string().min(16).optional(),
 });

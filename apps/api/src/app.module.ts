@@ -19,6 +19,7 @@ import { CloudModule } from './cloud/cloud.module';
 import { ApmModule } from './apm/apm.module';
 import { SecurityModule } from './security/security.module';
 import { LicensingModule } from './licensing/licensing.module';
+import { ProbeModule } from './probe/probe.module';
 import { envValidationSchema } from './config/env.validation';
 
 @Module({
@@ -76,6 +77,8 @@ import { envValidationSchema } from './config/env.validation';
     SecurityModule,
     // Licensing Module (license validation, feature gating, trial provisioning)
     LicensingModule,
+    // Probe Module (remote probe agent ingestion)
+    ProbeModule,
   ],
   controllers: [AppController],
   providers: [

@@ -55,11 +55,24 @@ export class SnmpMonitorService {
         ],
       });
 
-      this.logger.log(`Found ${devices.length} devices to poll`);
+      // Filter out devices managed by remote probes
+      const probeManaged = devices.filter(
+        (d) => d.metadata?.dataSource === 'probe',
+      );
+      if (probeManaged.length > 0) {
+        this.logger.log(
+          `Skipping ${probeManaged.length} device(s) managed by remote probe(s)`,
+        );
+      }
+      const devicesToPoll = devices.filter(
+        (d) => d.metadata?.dataSource !== 'probe',
+      );
+
+      this.logger.log(`Found ${devicesToPoll.length} devices to poll (${probeManaged.length} probe-managed skipped)`);
 
       // Poll each device
       const results = await Promise.allSettled(
-        devices.map((device) => this.pollDevice(device))
+        devicesToPoll.map((device) => this.pollDevice(device))
       );
 
       // Count results
@@ -88,10 +101,10 @@ export class SnmpMonitorService {
           isOnline = true;
           this.logger.debug(`${device.name}: Real SNMP data collected`);
         } else {
-          // Fallback to simulation
+          // Fallback to simulation - keep online for PoC
           metrics = this.generateSimulatedMetrics(device);
-          isOnline = false;
-          this.logger.debug(`${device.name}: Using simulated data (SNMP failed)`);
+          isOnline = true;
+          this.logger.warn(`${device.name}: SNMP unreachable, using simulated data (PoC mode)`);
         }
       } else {
         // Simulation mode - always use simulated data

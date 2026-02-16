@@ -1,9 +1,9 @@
 # EMS Platform - System Architecture
 
-**Version:** 1.0  
-**Date:** January 8, 2026  
-**Author:** Pramod + Claude  
-**Status:** Phase 0 Complete ✅
+**Version:** 1.1
+**Date:** February 17, 2026
+**Author:** Pramod + Claude
+**Status:** Phase 0 Complete, Remote Probe Agent Added ✅
 
 ---
 
@@ -47,7 +47,7 @@
 ## Module Responsibilities
 
 ### EMS Core (apps/api)
-**Port:** 3000  
+**Port:** 3100
 **Tech:** NestJS + TypeScript + PostgreSQL
 
 **Owns:**
@@ -57,9 +57,10 @@
 - User authentication and RBAC
 - Metric storage and querying
 - API Gateway for all modules
+- Probe ingestion endpoint (receives metrics from remote probe agents)
 
 **Does NOT:**
-- Poll devices (that's NMS)
+- Poll remote VRF devices directly (that's the Probe Agent)
 - Run ML models (that's ML service)
 - Collect logs (that's SIEM)
 
@@ -302,6 +303,60 @@ docker-compose.yml:
 - **CORS:** Configured origins only
 - **HTTPS:** Required in production
 - **API keys:** For module-to-module communication
+
+---
+
+## Remote Probe Agent Architecture
+
+### Problem
+RailTel devices (172.26.186.x) sit inside isolated VRFs at a remote POP site. The NOC machine has no routing into those VRFs, and RailTel will not extend routing. Real SNMP data is required, not simulated.
+
+### Solution: Remote Probe Agent (apps/probe)
+A lightweight NestJS agent deployed at the remote POP site that polls devices locally via SNMP and pushes metrics outbound to the central EMS API over HTTPS.
+
+```
+[Remote POP Site]                          [NOC / Central]
+┌───────────────────┐   HTTPS POST        ┌──────────────────┐
+│  Probe Agent      │ ──────────────────→ │  EMS API :3100   │
+│  (apps/probe)     │   /api/v1/probe/    │  ProbeModule     │
+│  :3200            │   ingest            │                  │
+│                   │                     │  Writes to same  │
+│  Polls SNMP :161  │   Buffered + retry  │  DB tables as    │
+│  every 30 seconds │   if API is down    │  SnmpMonitorSvc  │
+└───────┬───────────┘                     └──────────────────┘
+        │ SNMP v2c
+   ┌────┴────┬──────────┬─────────┐
+   │ DM-     │ DM-      │ Depot-  │ ...
+   │ Tuticorin│ Theni   │ Coimb.  │
+   │ .110    │ .114     │ .10     │
+```
+
+### Probe Agent Components (apps/probe)
+
+| Component | Purpose |
+|-----------|---------|
+| `src/config.ts` | 5 RailTel devices with asset UUIDs, IPs, SNMP community |
+| `src/snmp-poller.service.ts` | SNMP GET (sysUpTime, ifInOctets, ifOutOctets) with 3s timeout, fallback metrics |
+| `src/api-pusher.service.ts` | Axios POST to central API with circular buffer (100 max), exponential backoff retry |
+| `src/probe-orchestrator.service.ts` | Cron every 30s: poll all → push batch. First poll on startup |
+| `src/main.ts` | NestJS bootstrap on port 3200, /health endpoint |
+
+### Central API Probe Module (apps/api/src/probe)
+
+| Component | Purpose |
+|-----------|---------|
+| `guards/api-key.guard.ts` | Validates `X-Probe-Api-Key` header |
+| `dto/probe-payload.dto.ts` | Strict DTO with class-validator validation |
+| `probe.service.ts` | Processes each device: updates asset status/metadata, upserts device_health, inserts metrics_history, creates traffic_flows |
+| `probe.controller.ts` | `POST /api/v1/probe/ingest`, `GET /api/v1/probe/health`, `GET /api/v1/probe/:probeId/status` |
+
+### SNMP Monitor Coexistence
+Devices managed by a probe have `metadata.dataSource = 'probe'` set automatically on first ingestion. The SNMP monitor skips these devices to avoid double-polling.
+
+### Resilience
+- **Buffer:** Circular buffer (max 100 payloads) with exponential backoff (2s→4s→8s→16s→32s)
+- **Auto-drain:** Buffer drains automatically when API connection restores
+- **Graceful degradation:** If SNMP is unreachable, probe still reports device with fallback metrics
 
 ---
 

@@ -118,9 +118,7 @@ export class TrafficFlowGeneratorService {
         assetId: sourceDevice.id,
         interfaceId: null,
         sourceIp: sourceDevice.ip,
-        sourceDeviceName: sourceDevice.name,
         destinationIp: destDevice.ip,
-        destinationDeviceName: destDevice.name,
         protocol: protocol.name,
         sourcePort: 1024 + Math.floor(Math.random() * 64000),
         destinationPort: protocol.port,
@@ -128,7 +126,7 @@ export class TrafficFlowGeneratorService {
         bytesOut: Math.floor(bytesTransferred * 0.4),
         packetsIn: Math.floor(packetsTransferred * 0.6),
         packetsOut: Math.floor(packetsTransferred * 0.4),
-        duration: 10 + Math.floor(Math.random() * 50),
+        flowDuration: 10 + Math.floor(Math.random() * 50),
         timestamp: new Date(),
       });
     }
@@ -164,14 +162,12 @@ export class TrafficFlowGeneratorService {
       const bytesOut = (bandwidthOutMbps * 1000000 / 8) * 30;
 
       if (bytesIn > 0 || bytesOut > 0) {
-        // Create aggregated flow record
+        // Create aggregated flow record (use 0.0.0.0 for external/aggregated traffic)
         flows.push({
           assetId: device.id,
           interfaceId: null,
           sourceIp: device.ip,
-          sourceDeviceName: device.name,
-          destinationIp: 'External',
-          destinationDeviceName: 'Internet',
+          destinationIp: '0.0.0.0',
           protocol: 'Aggregated',
           sourcePort: 0,
           destinationPort: 0,
