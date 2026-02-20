@@ -60,6 +60,63 @@ services:
     networks:
       - ems-network
 
+  # Redis (Cache / Event Bus)
+  redis:
+    image: redis:7-alpine
+    container_name: ems-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ems-network
+
+  # ITSM Lite Module
+  itsm:
+    build:
+      context: .
+      dockerfile: apps/itsm/Dockerfile
+    container_name: ems-itsm
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3005
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-ems_platform}
+      DATABASE_USER: ${DATABASE_USER:-ems_admin}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      EMS_CORE_URL: http://api:3100/api/v1
+      ITSM_MODULE_API_KEY: ${ITSM_MODULE_API_KEY:-}
+    ports:
+      - "${ITSM_PORT:-3005}:3005"
+    volumes:
+      - ./apps/itsm/src:/app/apps/itsm/src:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    networks:
+      - ems-network
+
   # React Frontend
   web:
     build:
@@ -82,6 +139,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 networks:
