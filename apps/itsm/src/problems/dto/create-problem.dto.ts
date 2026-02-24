@@ -24,6 +24,11 @@ export class CreateProblemDto {
   @IsOptional()
   rootCause?: string;
 
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  workaround?: string;
+
   @ApiPropertyOptional({
     enum: ['open', 'investigating', 'known_error', 'resolved', 'closed'],
     default: 'open',

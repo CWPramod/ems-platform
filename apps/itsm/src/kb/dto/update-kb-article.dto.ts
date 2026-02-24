@@ -1,24 +1,23 @@
 import {
   IsString,
-  IsNotEmpty,
   IsOptional,
   IsIn,
   IsArray,
   MaxLength,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
-export class CreateKbArticleDto {
-  @ApiProperty({ maxLength: 255 })
+export class UpdateKbArticleDto {
+  @ApiPropertyOptional({ maxLength: 255 })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(255)
-  title: string;
+  title?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  @IsNotEmpty()
-  content: string;
+  @IsOptional()
+  content?: string;
 
   @ApiPropertyOptional({ maxLength: 50 })
   @IsString()
@@ -32,7 +31,7 @@ export class CreateKbArticleDto {
   @IsOptional()
   tags?: string[];
 
-  @ApiPropertyOptional({ enum: ['draft', 'published', 'archived'], default: 'draft' })
+  @ApiPropertyOptional({ enum: ['draft', 'published', 'archived'] })
   @IsString()
   @IsOptional()
   @IsIn(['draft', 'published', 'archived'])

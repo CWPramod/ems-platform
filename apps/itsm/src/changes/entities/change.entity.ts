@@ -29,6 +29,18 @@ export class Change {
   @Column({ name: 'scheduled_end', type: 'timestamptz', nullable: true })
   scheduledEnd: Date;
 
+  @Column({ name: 'approved_by', type: 'varchar', length: 50, nullable: true })
+  approvedBy: string;
+
+  @Column({ name: 'implementation_notes', type: 'text', nullable: true })
+  implementationNotes: string;
+
+  @Column({ name: 'rollback_plan', type: 'text', nullable: true })
+  rollbackPlan: string;
+
+  @Column({ name: 'change_number', type: 'varchar', length: 20, unique: true, nullable: true })
+  changeNumber: string;
+
   @Column({ name: 'created_by', type: 'varchar', length: 50, nullable: true })
   createdBy: string;
 

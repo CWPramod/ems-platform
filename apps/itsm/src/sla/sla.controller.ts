@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Body,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -38,5 +39,31 @@ export class SlaController {
   @Get('breaches')
   async getBreaches() {
     return this.slaService.getBreachedTickets();
+  }
+
+  @Get('breach-rate')
+  async getBreachRate() {
+    return this.slaService.getBreachRateBySeverity();
+  }
+
+  @Get('at-risk')
+  async getAtRisk(@Query('threshold') threshold?: string) {
+    return this.slaService.getAtRiskTickets(
+      parseInt(threshold || '30', 10) || 30,
+    );
+  }
+
+  @Get('compliance-trend')
+  async getComplianceTrend(@Query('days') days?: string) {
+    return this.slaService.getComplianceTrend(
+      parseInt(days || '30', 10) || 30,
+    );
+  }
+
+  @Get('escalation-frequency')
+  async getEscalationFrequency(@Query('days') days?: string) {
+    return this.slaService.getEscalationFrequency(
+      parseInt(days || '30', 10) || 30,
+    );
   }
 }

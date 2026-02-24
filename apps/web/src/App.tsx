@@ -25,6 +25,11 @@ import MLDashboard from './pages/MLDashboard';
 import Security from './pages/Security';
 import LicenseManagement from './pages/LicenseManagement';
 import Masters from './pages/Masters';
+import ITSMTickets from './pages/itsm/Tickets';
+import ITSMSlaDashboard from './pages/itsm/SlaDashboard';
+import ITSMProblems from './pages/itsm/Problems';
+import ITSMChanges from './pages/itsm/Changes';
+import ITSMKnowledgeBase from './pages/itsm/KnowledgeBase';
 import { APP_MODE, FEATURES } from './config/appMode';
 
 export default function App() {
@@ -63,9 +68,16 @@ export default function App() {
             <Route path="/security" element={<Security />} />
             <Route path="/license" element={<LicenseManagement />} />
 
-            {/* EMS-only routes (enabled only in EMS mode) */}
+            {/* ITSM routes (enabled only in EMS mode) */}
             {FEATURES[APP_MODE].showITSM && (
-              <Route path="/assets" element={<Assets />} />
+              <>
+                <Route path="/assets" element={<Assets />} />
+                <Route path="/itsm/tickets" element={<ITSMTickets />} />
+                <Route path="/itsm/sla" element={<ITSMSlaDashboard />} />
+                <Route path="/itsm/problems" element={<ITSMProblems />} />
+                <Route path="/itsm/changes" element={<ITSMChanges />} />
+                <Route path="/itsm/kb" element={<ITSMKnowledgeBase />} />
+              </>
             )}
             {FEATURES[APP_MODE].showAPM && (
               <Route path="/apm" element={<APM />} />

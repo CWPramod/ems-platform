@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -15,6 +16,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UserId } from '../common/decorators';
 import { KbService } from './kb.service';
 import { CreateKbArticleDto } from './dto/create-kb-article.dto';
+import { UpdateKbArticleDto } from './dto/update-kb-article.dto';
 
 @ApiTags('kb')
 @ApiBearerAuth()
@@ -34,12 +36,21 @@ export class KbController {
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
+    @Query('category') category?: string,
+    @Query('status') status?: string,
   ) {
     return this.kbService.findAll(
       parseInt(page || '1', 10) || 1,
       Math.min(parseInt(limit || '20', 10) || 20, 100),
       search,
+      category,
+      status,
     );
+  }
+
+  @Get('categories')
+  async getCategories() {
+    return this.kbService.getCategories();
   }
 
   @Get('suggest')
@@ -50,5 +61,14 @@ export class KbController {
   @Get('articles/:id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.kbService.findOne(id);
+  }
+
+  @Patch('articles/:id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateKbArticleDto,
+    @UserId() userId: string,
+  ) {
+    return this.kbService.update(id, dto, userId);
   }
 }

@@ -27,12 +27,24 @@ import type {
   DdosSummary,
   DdosReport,
   SecurityOverview,
+  ITSMTicket,
+  ITSMTicketComment,
+  ITSMTicketHistory,
+  ITSMSlaPolicy,
+  ITSMSlaDashboard,
+  ITSMBreachRateBySeverity,
+  ITSMComplianceTrend,
+  ITSMEscalationFrequency,
+  ITSMProblem,
+  ITSMChange,
+  ITSMKbArticle,
 } from '../types';
 
 // API Base URLs
 const NEST_API_BASE = 'http://localhost:3100';
 const ML_API_BASE = 'http://localhost:8000';
 const NMS_API_BASE = 'http://localhost:3001';
+const ITSM_API_BASE = 'http://localhost:3005';
 
 // Create axios instances
 const nestAPI = axios.create({
@@ -67,6 +79,25 @@ const nmsAPIClient = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+const itsmAPIClient = axios.create({
+  baseURL: ITSM_API_BASE,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Add auth token interceptor to itsmAPIClient
+itsmAPIClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 
 // ============================================================================
 // ASSETS API
@@ -494,6 +525,186 @@ export const securityAPI = {
   },
 };
 
+// ============================================================================
+// ITSM API (port 3005)
+// ============================================================================
+
+export const itsmTicketsAPI = {
+  getAll: async (params?: {
+    page?: number; limit?: number; status?: string;
+    severity?: string; priority?: string; type?: string;
+    assignedTo?: string; search?: string; slaBreach?: string;
+    sort?: string;
+  }): Promise<{ data: ITSMTicket[]; total: number; page: number; limit: number }> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/tickets', { params });
+    return response.data;
+  },
+  getById: async (id: string): Promise<ITSMTicket> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/tickets/${id}`);
+    return response.data;
+  },
+  create: async (data: Partial<ITSMTicket>): Promise<ITSMTicket> => {
+    const response = await itsmAPIClient.post('/api/v1/itsm/tickets', data);
+    return response.data;
+  },
+  updateStatus: async (id: string, data: { status: string; resolutionNotes?: string }): Promise<ITSMTicket> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/tickets/${id}/status`, data);
+    return response.data;
+  },
+  assign: async (id: string, data: { assignedTo: string }): Promise<ITSMTicket> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/tickets/${id}/assign`, data);
+    return response.data;
+  },
+  getComments: async (id: string): Promise<ITSMTicketComment[]> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/tickets/${id}/comments`);
+    return response.data;
+  },
+  addComment: async (id: string, data: { comment: string; visibility?: string }): Promise<ITSMTicketComment> => {
+    const response = await itsmAPIClient.post(`/api/v1/itsm/tickets/${id}/comments`, data);
+    return response.data;
+  },
+  getHistory: async (id: string): Promise<ITSMTicketHistory[]> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/tickets/${id}/history`);
+    return response.data;
+  },
+};
+
+export const itsmSlaAPI = {
+  getDashboard: async (): Promise<ITSMSlaDashboard> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/dashboard');
+    return response.data;
+  },
+  getBreaches: async (): Promise<ITSMTicket[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/breaches');
+    return response.data;
+  },
+  getAtRisk: async (threshold?: number): Promise<ITSMTicket[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/at-risk', { params: { threshold } });
+    return response.data;
+  },
+  getBreachRate: async (): Promise<ITSMBreachRateBySeverity[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/breach-rate');
+    return response.data;
+  },
+  getComplianceTrend: async (days?: number): Promise<ITSMComplianceTrend[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/compliance-trend', { params: { days } });
+    return response.data;
+  },
+  getEscalationFrequency: async (days?: number): Promise<ITSMEscalationFrequency[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/escalation-frequency', { params: { days } });
+    return response.data;
+  },
+  getPolicies: async (): Promise<ITSMSlaPolicy[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/sla/policies');
+    return response.data;
+  },
+};
+
+export const itsmProblemsAPI = {
+  getAll: async (params?: {
+    page?: number; limit?: number; status?: string; search?: string;
+  }): Promise<{ data: ITSMProblem[]; total: number; page: number; limit: number }> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/problems', { params });
+    return response.data;
+  },
+  getById: async (id: string): Promise<ITSMProblem> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/problems/${id}`);
+    return response.data;
+  },
+  create: async (data: Partial<ITSMProblem>): Promise<ITSMProblem> => {
+    const response = await itsmAPIClient.post('/api/v1/itsm/problems', data);
+    return response.data;
+  },
+  update: async (id: string, data: Partial<ITSMProblem>): Promise<ITSMProblem> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/problems/${id}`, data);
+    return response.data;
+  },
+  updateStatus: async (id: string, data: { status: string }): Promise<ITSMProblem> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/problems/${id}/status`, data);
+    return response.data;
+  },
+  getKnownErrors: async (params?: { page?: number; limit?: number }): Promise<{ data: ITSMProblem[]; total: number }> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/problems/known-errors', { params });
+    return response.data;
+  },
+  suggest: async (query: string): Promise<ITSMProblem[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/problems/suggest', { params: { query } });
+    return response.data;
+  },
+  getLinkedIncidents: async (id: string): Promise<ITSMTicket[]> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/problems/${id}/incidents`);
+    return response.data;
+  },
+  linkIncident: async (id: string, data: { ticketId: string }): Promise<ITSMTicket> => {
+    const response = await itsmAPIClient.post(`/api/v1/itsm/problems/${id}/incidents`, data);
+    return response.data;
+  },
+};
+
+export const itsmChangesAPI = {
+  getAll: async (params?: {
+    page?: number; limit?: number; approvalStatus?: string;
+    riskLevel?: string; search?: string;
+  }): Promise<{ data: ITSMChange[]; total: number; page: number; limit: number }> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/changes', { params });
+    return response.data;
+  },
+  getById: async (id: string): Promise<ITSMChange> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/changes/${id}`);
+    return response.data;
+  },
+  create: async (data: Partial<ITSMChange>): Promise<ITSMChange> => {
+    const response = await itsmAPIClient.post('/api/v1/itsm/changes', data);
+    return response.data;
+  },
+  update: async (id: string, data: Partial<ITSMChange>): Promise<ITSMChange> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/changes/${id}`, data);
+    return response.data;
+  },
+  updateStatus: async (id: string, data: { approvalStatus: string; implementationNotes?: string }): Promise<ITSMChange> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/changes/${id}/status`, data);
+    return response.data;
+  },
+  getCalendar: async (startDate?: string, endDate?: string): Promise<ITSMChange[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/changes/calendar', { params: { startDate, endDate } });
+    return response.data;
+  },
+  getConflicts: async (id: string): Promise<ITSMChange[]> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/changes/${id}/conflicts`);
+    return response.data;
+  },
+};
+
+export const itsmKbAPI = {
+  getAll: async (params?: {
+    page?: number; limit?: number; search?: string;
+    category?: string; status?: string;
+  }): Promise<{ data: ITSMKbArticle[]; total: number; page: number; limit: number }> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/kb/articles', { params });
+    return response.data;
+  },
+  getById: async (id: string): Promise<ITSMKbArticle> => {
+    const response = await itsmAPIClient.get(`/api/v1/itsm/kb/articles/${id}`);
+    return response.data;
+  },
+  create: async (data: Partial<ITSMKbArticle>): Promise<ITSMKbArticle> => {
+    const response = await itsmAPIClient.post('/api/v1/itsm/kb/articles', data);
+    return response.data;
+  },
+  update: async (id: string, data: Partial<ITSMKbArticle>): Promise<ITSMKbArticle> => {
+    const response = await itsmAPIClient.patch(`/api/v1/itsm/kb/articles/${id}`, data);
+    return response.data;
+  },
+  suggest: async (query: string): Promise<ITSMKbArticle[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/kb/suggest', { params: { query } });
+    return response.data;
+  },
+  getCategories: async (): Promise<string[]> => {
+    const response = await itsmAPIClient.get('/api/v1/itsm/kb/categories');
+    return response.data;
+  },
+};
+
 export default {
   assetsAPI,
   metricsAPI,
@@ -503,4 +714,9 @@ export default {
   nmsAPI,
   healthAPI,
   securityAPI,
+  itsmTicketsAPI,
+  itsmSlaAPI,
+  itsmProblemsAPI,
+  itsmChangesAPI,
+  itsmKbAPI,
 };

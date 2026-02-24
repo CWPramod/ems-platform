@@ -20,6 +20,9 @@ export class Problem {
   @Column({ name: 'root_cause', type: 'text', nullable: true })
   rootCause: string;
 
+  @Column({ type: 'text', nullable: true })
+  workaround: string;
+
   @Column({ type: 'varchar', length: 30, default: 'open' })
   status: string; // open, investigating, known_error, resolved, closed
 

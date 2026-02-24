@@ -92,7 +92,6 @@ export class SlaService {
     mttrMinutes: number | null;
     mttaMinutes: number | null;
   }> {
-    // Total closed/resolved tickets for MTTR/MTTA
     const totalResult = await this.ticketRepo
       .createQueryBuilder('t')
       .select('COUNT(*)', 'total')
@@ -137,5 +136,83 @@ export class SlaService {
       mttrMinutes: mttrMinutes ? Math.round(mttrMinutes * 100) / 100 : null,
       mttaMinutes: mttaMinutes ? Math.round(mttaMinutes * 100) / 100 : null,
     };
+  }
+
+  async getBreachRateBySeverity(): Promise<
+    { severity: string; total: number; breached: number; breachRate: number }[]
+  > {
+    const results = await this.ticketRepo
+      .createQueryBuilder('t')
+      .select('t.severity', 'severity')
+      .addSelect('COUNT(*)::int', 'total')
+      .addSelect('SUM(CASE WHEN t.breached = TRUE THEN 1 ELSE 0 END)::int', 'breached')
+      .groupBy('t.severity')
+      .getRawMany();
+
+    return results.map((r) => ({
+      severity: r.severity,
+      total: parseInt(r.total, 10),
+      breached: parseInt(r.breached, 10),
+      breachRate:
+        parseInt(r.total, 10) > 0
+          ? Math.round((parseInt(r.breached, 10) / parseInt(r.total, 10)) * 10000) / 100
+          : 0,
+    }));
+  }
+
+  async getEscalationFrequency(
+    days = 30,
+  ): Promise<{ date: string; fieldChanged: string; count: number }[]> {
+    const results = await this.ticketRepo.manager.query(
+      `SELECT DATE(changed_at) as date,
+              field_changed as "fieldChanged",
+              COUNT(*)::int as count
+       FROM ticket_history
+       WHERE field_changed LIKE 'escalation%'
+         AND changed_at >= NOW() - $1::int * INTERVAL '1 day'
+       GROUP BY DATE(changed_at), field_changed
+       ORDER BY date`,
+      [days],
+    );
+    return results;
+  }
+
+  async getAtRiskTickets(thresholdMinutes = 30): Promise<Ticket[]> {
+    return this.ticketRepo
+      .createQueryBuilder('t')
+      .leftJoinAndSelect('t.slaPolicy', 'slaPolicy')
+      .where('t.breached = FALSE')
+      .andWhere('t.sla_due_at IS NOT NULL')
+      .andWhere('t.status NOT IN (:...statuses)', { statuses: ['resolved', 'closed'] })
+      .andWhere("t.sla_due_at <= NOW() + :threshold * INTERVAL '1 minute'", {
+        threshold: thresholdMinutes,
+      })
+      .orderBy('t.sla_due_at', 'ASC')
+      .getMany();
+  }
+
+  async getComplianceTrend(
+    days = 30,
+  ): Promise<{ date: string; total: number; breached: number; compliancePercent: number }[]> {
+    const results = await this.ticketRepo.manager.query(
+      `SELECT DATE(created_at) as date,
+              COUNT(*)::int as total,
+              SUM(CASE WHEN breached = TRUE THEN 1 ELSE 0 END)::int as breached
+       FROM tickets
+       WHERE created_at >= NOW() - $1::int * INTERVAL '1 day'
+       GROUP BY DATE(created_at)
+       ORDER BY date`,
+      [days],
+    );
+
+    return results.map((r: any) => ({
+      date: r.date,
+      total: parseInt(r.total, 10),
+      breached: parseInt(r.breached, 10),
+      compliancePercent:
+        parseInt(r.total, 10) > 0
+          ? Math.round(((parseInt(r.total, 10) - parseInt(r.breached, 10)) / parseInt(r.total, 10)) * 10000) / 100
+          : 100,
+    }));
   }
 }

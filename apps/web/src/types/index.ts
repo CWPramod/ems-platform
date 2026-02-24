@@ -534,3 +534,135 @@ export interface SecurityOverview {
   signatures: { total: number; last24h: number; criticalLastHour: number };
   ddos: { active: number; mitigated: number; peakBandwidthGbps: number };
 }
+
+// ============================================================================
+// ITSM TYPES
+// ============================================================================
+
+export interface ITSMTicket {
+  id: string;
+  ticketNumber: string;
+  title: string;
+  description?: string;
+  type: 'incident' | 'problem' | 'change';
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  priority: 'P1' | 'P2' | 'P3' | 'P4';
+  status: 'open' | 'acknowledged' | 'in_progress' | 'pending' | 'resolved' | 'closed';
+  assetId?: string;
+  alertId?: string;
+  problemId?: string;
+  assignedTo?: string;
+  createdBy: string;
+  slaPolicyId?: string;
+  slaPolicy?: ITSMSlaPolicy;
+  slaDueAt?: string;
+  breached: boolean;
+  resolutionNotes?: string;
+  source: 'manual' | 'auto_alert' | 'email' | 'api';
+  pendingDurationMs: number;
+  pendingSince?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ITSMSlaPolicy {
+  id: string;
+  name: string;
+  severity: string;
+  responseTimeMinutes: number;
+  resolutionTimeMinutes: number;
+  escalationLevel1Minutes: number;
+  escalationLevel2Minutes: number;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface ITSMTicketComment {
+  id: string;
+  ticketId: string;
+  comment: string;
+  visibility: 'public' | 'internal';
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface ITSMTicketHistory {
+  id: string;
+  ticketId: string;
+  fieldChanged: string;
+  oldValue?: string;
+  newValue?: string;
+  changedBy: string;
+  changedAt: string;
+}
+
+export interface ITSMProblem {
+  id: string;
+  title: string;
+  description?: string;
+  rootCause?: string;
+  workaround?: string;
+  status: 'open' | 'investigating' | 'known_error' | 'resolved' | 'closed';
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ITSMChange {
+  id: string;
+  changeNumber?: string;
+  title: string;
+  description?: string;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  approvalStatus: 'draft' | 'pending_approval' | 'approved' | 'rejected' | 'implemented' | 'rolled_back';
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  approvedBy?: string;
+  implementationNotes?: string;
+  rollbackPlan?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ITSMKbArticle {
+  id: string;
+  title: string;
+  content: string;
+  version: number;
+  status: 'draft' | 'published' | 'archived';
+  category?: string;
+  tags?: string[];
+  viewCount: number;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ITSMSlaDashboard {
+  totalTickets: number;
+  breachedTickets: number;
+  compliancePercent: number;
+  mttrMinutes: number | null;
+  mttaMinutes: number | null;
+}
+
+export interface ITSMBreachRateBySeverity {
+  severity: string;
+  total: number;
+  breached: number;
+  breachRate: number;
+}
+
+export interface ITSMComplianceTrend {
+  date: string;
+  total: number;
+  breached: number;
+  compliancePercent: number;
+}
+
+export interface ITSMEscalationFrequency {
+  date: string;
+  fieldChanged: string;
+  count: number;
+}

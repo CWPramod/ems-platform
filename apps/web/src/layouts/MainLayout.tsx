@@ -38,6 +38,10 @@ import {
   SecurityScanOutlined,
   SafetyCertificateOutlined,
   DatabaseOutlined,
+  ToolOutlined,
+  BugOutlined,
+  SwapOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { APP_MODE, FEATURES } from '../config/appMode';
@@ -155,11 +159,19 @@ export default function MainLayout() {
       label: 'License',
     },
 
-    // EMS-only Menus
+    // ITSM Module
     FEATURES[APP_MODE].showITSM && {
-      key: '/assets',
-      icon: <AppstoreOutlined />,
-      label: 'Assets',
+      key: 'itsm',
+      icon: <ToolOutlined />,
+      label: 'ITSM',
+      children: [
+        { key: '/itsm/tickets', icon: <AlertOutlined />, label: 'Tickets' },
+        { key: '/itsm/sla', icon: <DashboardOutlined />, label: 'SLA Dashboard' },
+        { key: '/itsm/problems', icon: <BugOutlined />, label: 'Problems' },
+        { key: '/itsm/changes', icon: <SwapOutlined />, label: 'Changes' },
+        { key: '/itsm/kb', icon: <BookOutlined />, label: 'Knowledge Base' },
+        { key: '/assets', icon: <AppstoreOutlined />, label: 'Assets' },
+      ],
     },
     FEATURES[APP_MODE].showAPM && {
       key: '/apm',

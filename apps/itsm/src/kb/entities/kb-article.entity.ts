@@ -23,6 +23,15 @@ export class KbArticle {
   @Column({ type: 'varchar', length: 20, default: 'draft' })
   status: string; // draft, published, archived
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  category: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  tags: string[];
+
+  @Column({ name: 'view_count', type: 'int', default: 0 })
+  viewCount: number;
+
   @Column({ name: 'created_by', type: 'varchar', length: 50, nullable: true })
   createdBy: string;
 

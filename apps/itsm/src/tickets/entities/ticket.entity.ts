@@ -49,6 +49,9 @@ export class Ticket {
   @Column({ name: 'alert_id', type: 'varchar', length: 50, nullable: true })
   alertId: string;
 
+  @Column({ name: 'problem_id', type: 'uuid', nullable: true })
+  problemId: string;
+
   @Column({ name: 'assigned_to', type: 'varchar', length: 50, nullable: true })
   assignedTo: string;
 

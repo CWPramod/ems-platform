@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Param,
   Body,
   Query,
@@ -15,6 +16,8 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { UserId } from '../common/decorators';
 import { ChangesService } from './changes.service';
 import { CreateChangeDto } from './dto/create-change.dto';
+import { UpdateChangeDto } from './dto/update-change.dto';
+import { UpdateChangeStatusDto } from './dto/update-change-status.dto';
 
 @ApiTags('changes')
 @ApiBearerAuth()
@@ -33,10 +36,16 @@ export class ChangesController {
   async findAll(
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('approvalStatus') approvalStatus?: string,
+    @Query('riskLevel') riskLevel?: string,
+    @Query('search') search?: string,
   ) {
     return this.changesService.findAll(
       parseInt(page || '1', 10) || 1,
       Math.min(parseInt(limit || '20', 10) || 20, 100),
+      approvalStatus,
+      riskLevel,
+      search,
     );
   }
 
@@ -51,5 +60,28 @@ export class ChangesController {
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.changesService.findOne(id);
+  }
+
+  @Patch(':id')
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateChangeDto,
+    @UserId() userId: string,
+  ) {
+    return this.changesService.update(id, dto, userId);
+  }
+
+  @Patch(':id/status')
+  async updateApprovalStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateChangeStatusDto,
+    @UserId() userId: string,
+  ) {
+    return this.changesService.updateApprovalStatus(id, dto, userId);
+  }
+
+  @Get(':id/conflicts')
+  async checkConflicts(@Param('id', ParseUUIDPipe) id: string) {
+    return this.changesService.checkConflicts(id);
   }
 }
