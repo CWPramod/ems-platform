@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Row,
@@ -154,6 +155,8 @@ function getSlaDisplay(ticket: ITSMTicket): React.ReactNode {
 // ============================================================================
 
 const Tickets = () => {
+  const navigate = useNavigate();
+
   // State: data
   const [tickets, setTickets] = useState<ITSMTicket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -384,10 +387,11 @@ const Tickets = () => {
       dataIndex: 'ticketNumber',
       key: 'ticketNumber',
       width: 160,
-      render: (num: string) => (
-        <Text strong style={{ fontFamily: 'monospace', fontSize: 12 }}>
+      render: (num: string, record: ITSMTicket) => (
+        <a onClick={() => navigate(`/itsm/tickets/${record.id}`)}
+          style={{ fontFamily: 'monospace', fontSize: 12, fontWeight: 600 }}>
           {num}
-        </Text>
+        </a>
       ),
     },
     {
@@ -435,7 +439,7 @@ const Tickets = () => {
       ellipsis: true,
       render: (_, record) => (
         <Tooltip title={record.description}>
-          <a onClick={() => showDetailModal(record)} style={{ fontWeight: 500 }}>
+          <a onClick={() => navigate(`/itsm/tickets/${record.id}`)} style={{ fontWeight: 500 }}>
             {record.title}
           </a>
         </Tooltip>
@@ -678,7 +682,7 @@ const Tickets = () => {
                 renderItem={(c) => (
                   <List.Item
                     style={{
-                      background: c.visibility === 'internal' ? '#fffbe6' : '#f6ffed',
+                      background: c.visibility === 'internal' ? 'rgba(250, 173, 20, 0.06)' : 'rgba(82, 196, 26, 0.06)',
                       borderRadius: 4,
                       marginBottom: 8,
                       padding: '8px 12px',

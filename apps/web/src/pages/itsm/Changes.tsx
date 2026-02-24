@@ -29,6 +29,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   CalendarOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { Dayjs } from 'dayjs';
@@ -106,6 +107,12 @@ const Changes = () => {
   const [submitLoading, setSubmitLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState('list');
+
+  // Conflict detection state
+  const [conflictModalVisible, setConflictModalVisible] = useState(false);
+  const [conflictChangeId, setConflictChangeId] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<ITSMChange[]>([]);
+  const [conflictsLoading, setConflictsLoading] = useState(false);
 
   const [form] = Form.useForm();
 
@@ -353,6 +360,62 @@ const Changes = () => {
   };
 
   // -------------------------------------------------------------------------
+  // Conflict detection
+  // -------------------------------------------------------------------------
+  const handleCheckConflicts = async (change: ITSMChange) => {
+    setConflictChangeId(change.id);
+    setConflicts([]);
+    setConflictModalVisible(true);
+    try {
+      setConflictsLoading(true);
+      const data = await itsmChangesAPI.getConflicts(change.id);
+      setConflicts(Array.isArray(data) ? data : []);
+    } catch {
+      message.error('Failed to check conflicts');
+    } finally {
+      setConflictsLoading(false);
+    }
+  };
+
+  const conflictColumns: ColumnsType<ITSMChange> = [
+    {
+      title: 'Change #',
+      key: 'changeNumber',
+      width: 140,
+      render: (_, record) => <Text code style={{ fontSize: 12 }}>{record.changeNumber || record.id.slice(0, 8).toUpperCase()}</Text>,
+    },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+      ellipsis: true,
+    },
+    {
+      title: 'Risk',
+      key: 'riskLevel',
+      width: 90,
+      render: (_, record) => <Tag color={RISK_COLORS[record.riskLevel] ?? 'default'}>{record.riskLevel.toUpperCase()}</Tag>,
+    },
+    {
+      title: 'Window',
+      key: 'window',
+      width: 200,
+      render: (_, record) => (
+        <Space size={4} direction="vertical" style={{ lineHeight: 1.4 }}>
+          <Text style={{ fontSize: 12 }}>{formatDateTime(record.scheduledStart)}</Text>
+          <Text type="secondary" style={{ fontSize: 11 }}>→ {formatDateTime(record.scheduledEnd)}</Text>
+        </Space>
+      ),
+    },
+    {
+      title: 'Status',
+      key: 'approvalStatus',
+      width: 130,
+      render: (_, record) => <Tag color={APPROVAL_COLORS[record.approvalStatus] ?? 'default'}>{APPROVAL_LABELS[record.approvalStatus] ?? record.approvalStatus}</Tag>,
+    },
+  ];
+
+  // -------------------------------------------------------------------------
   // Table columns
   // -------------------------------------------------------------------------
   const columns: ColumnsType<ITSMChange> = [
@@ -429,8 +492,20 @@ const Changes = () => {
     {
       title: 'Actions',
       key: 'actions',
-      width: 180,
-      render: (_, record) => renderApprovalActions(record),
+      width: 240,
+      render: (_, record) => (
+        <Space size={4}>
+          {renderApprovalActions(record)}
+          {record.scheduledStart && (
+            <Tooltip title="Check for scheduling conflicts">
+              <Button size="small" icon={<ThunderboltOutlined />}
+                onClick={() => handleCheckConflicts(record)}>
+                Conflicts
+              </Button>
+            </Tooltip>
+          )}
+        </Space>
+      ),
     },
   ];
 
@@ -776,6 +851,49 @@ const Changes = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* Conflict Detection Modal */}
+      <Modal
+        title={<Space><ThunderboltOutlined style={{ color: '#faad14' }} /><span>Scheduling Conflicts</span></Space>}
+        open={conflictModalVisible}
+        onCancel={() => { setConflictModalVisible(false); setConflictChangeId(null); setConflicts([]); }}
+        footer={[
+          <Button key="close" type="primary"
+            onClick={() => { setConflictModalVisible(false); setConflictChangeId(null); setConflicts([]); }}>
+            Close
+          </Button>,
+        ]}
+        width={750}
+        destroyOnClose
+      >
+        {conflictsLoading ? (
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <SyncOutlined spin style={{ fontSize: 24 }} />
+            <Text type="secondary" style={{ display: 'block', marginTop: 8 }}>Checking for conflicts...</Text>
+          </div>
+        ) : conflicts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 40, background: 'rgba(82, 196, 26, 0.06)', borderRadius: 8, border: '1px solid rgba(82, 196, 26, 0.2)' }}>
+            <CheckCircleOutlined style={{ fontSize: 40, color: '#52c41a' }} />
+            <Title level={5} style={{ color: '#52c41a', marginTop: 12, marginBottom: 4 }}>No Conflicts Found</Title>
+            <Text type="secondary">This change window does not overlap with any other scheduled changes.</Text>
+          </div>
+        ) : (
+          <div>
+            <div style={{ marginBottom: 12, padding: '8px 12px', background: 'rgba(250, 173, 20, 0.08)', borderRadius: 6, borderLeft: '3px solid #faad14' }}>
+              <Text strong style={{ color: '#faad14' }}>
+                <WarningOutlined /> {conflicts.length} conflicting change{conflicts.length > 1 ? 's' : ''} found
+              </Text>
+            </div>
+            <Table<ITSMChange>
+              dataSource={conflicts}
+              columns={conflictColumns}
+              rowKey="id"
+              size="small"
+              pagination={false}
+            />
+          </div>
+        )}
       </Modal>
     </div>
   );

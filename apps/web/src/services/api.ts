@@ -598,6 +598,10 @@ export const itsmSlaAPI = {
     const response = await itsmAPIClient.get('/api/v1/itsm/sla/policies');
     return response.data;
   },
+  createPolicy: async (data: Partial<ITSMSlaPolicy>): Promise<ITSMSlaPolicy> => {
+    const response = await itsmAPIClient.post('/api/v1/itsm/sla/policies', data);
+    return response.data;
+  },
 };
 
 export const itsmProblemsAPI = {

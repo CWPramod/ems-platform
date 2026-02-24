@@ -633,7 +633,7 @@ const KnowledgeBase: React.FC = () => {
             {/* Content */}
             <Card
               style={{
-                background: '#fafafa',
+                background: 'rgba(255, 255, 255, 0.03)',
                 borderRadius: 6,
                 maxHeight: 460,
                 overflowY: 'auto',

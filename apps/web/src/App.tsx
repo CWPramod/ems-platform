@@ -30,6 +30,7 @@ import ITSMSlaDashboard from './pages/itsm/SlaDashboard';
 import ITSMProblems from './pages/itsm/Problems';
 import ITSMChanges from './pages/itsm/Changes';
 import ITSMKnowledgeBase from './pages/itsm/KnowledgeBase';
+import ITSMTicketDetails from './pages/itsm/TicketDetails';
 import { APP_MODE, FEATURES } from './config/appMode';
 
 export default function App() {
@@ -73,6 +74,7 @@ export default function App() {
               <>
                 <Route path="/assets" element={<Assets />} />
                 <Route path="/itsm/tickets" element={<ITSMTickets />} />
+                <Route path="/itsm/tickets/:ticketId" element={<ITSMTicketDetails />} />
                 <Route path="/itsm/sla" element={<ITSMSlaDashboard />} />
                 <Route path="/itsm/problems" element={<ITSMProblems />} />
                 <Route path="/itsm/changes" element={<ITSMChanges />} />
