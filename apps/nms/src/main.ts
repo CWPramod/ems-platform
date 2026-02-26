@@ -33,28 +33,34 @@ async function bootstrap() {
   const port = process.env.NMS_PORT || 3001;
   await app.listen(port);
   
+  const pollingEnabled = process.env.NMS_POLLING_ENABLED !== 'false';
+  const emsCoreUrl = process.env.EMS_CORE_URL || 'http://localhost:3100';
+
   console.log('');
-  console.log('╔════════════════════════════════════════════════════════════╗');
-  console.log('║                                                            ║');
-  console.log('║          🌐 NMS Module (Network Management)                ║');
-  console.log('║                                                            ║');
-  console.log('║  Status: Running                                           ║');
-  console.log(`║  Port: ${port}                                               ║`);
-  console.log('║  Mode: Integrated with EMS Core                            ║');
-  console.log('║  EMS Core API: http://localhost:3100                       ║');
-  console.log('║                                                            ║');
-  console.log('║  Endpoints:                                                ║');
-  console.log('║    GET  /health           - Health check                   ║');
-  console.log('║    GET  /nms/status       - NMS module status              ║');
-  console.log('║    POST /nms/discover     - Trigger device discovery       ║');
-  console.log('║    GET  /nms/metrics      - Current metrics                ║');
-  console.log('║                                                            ║');
-  console.log('║  Background Jobs:                                          ║');
-  console.log('║    ✓ Device polling (every 5 minutes)                      ║');
-  console.log('║    ✓ Metric collection (every 1 minute)                    ║');
-  console.log('║    ✓ Event emission to EMS Core                            ║');
-  console.log('║                                                            ║');
-  console.log('╚════════════════════════════════════════════════════════════╝');
+  console.log('==============================================================');
+  console.log('  NMS Module (Network Management / SNMP Discovery)');
+  console.log('==============================================================');
+  console.log(`  Status:       Running`);
+  console.log(`  Port:         ${port}`);
+  console.log(`  EMS Core:     ${emsCoreUrl}`);
+  console.log(`  Polling:      ${pollingEnabled ? 'ENABLED (30s interval)' : 'DISABLED (discovery-only)'}`);
+  console.log('');
+  console.log('  Endpoints:');
+  console.log('    GET  /health           - Health check');
+  console.log('    GET  /nms/status       - NMS module status');
+  console.log('    POST /nms/discover     - Trigger device discovery');
+  console.log('    GET  /nms/metrics      - Current metrics');
+  console.log('');
+  if (pollingEnabled) {
+    console.log('  Background Jobs:');
+    console.log('    * Device polling (every 30 seconds)');
+    console.log('    * Metric collection (every 30 seconds)');
+    console.log('    * Event emission to EMS Core');
+  } else {
+    console.log('  Polling disabled - API module handles SNMP polling.');
+    console.log('  Set NMS_POLLING_ENABLED=true to enable NMS polling.');
+  }
+  console.log('==============================================================');
   console.log('');
 }
 

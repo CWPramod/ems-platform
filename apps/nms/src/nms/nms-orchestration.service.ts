@@ -17,44 +17,52 @@ export class NmsOrchestrationService implements OnModuleInit {
   private readonly logger = new Logger(NmsOrchestrationService.name);
   private deviceStatuses = new Map<string, DeviceStatus>();
   private isPolling = false;
+  private readonly pollingEnabled: boolean;
 
   constructor(
     private readonly emsCoreClient: EmsCoreClient,
     private readonly snmpService: SnmpPollingService,
-  ) {}
+  ) {
+    this.pollingEnabled = process.env.NMS_POLLING_ENABLED !== 'false';
+    this.logger.log(`NMS polling ${this.pollingEnabled ? 'ENABLED' : 'DISABLED (discovery-only mode)'}`);
+  }
 
   async onModuleInit() {
     this.logger.log('NMS Orchestration Service initialized');
-    
+
     // Check EMS Core connectivity
     const isHealthy = await this.emsCoreClient.healthCheck();
     if (isHealthy) {
-      this.logger.log('✅ EMS Core is reachable at ' + this.emsCoreClient.getCoreUrl());
+      this.logger.log('EMS Core is reachable at ' + this.emsCoreClient.getCoreUrl());
     } else {
-      this.logger.warn('⚠️  EMS Core is not reachable. Will retry during polling.');
+      this.logger.warn('EMS Core is not reachable. Will retry during polling.');
     }
 
-    // Initial poll after startup (delayed by 10 seconds)
-    setTimeout(() => {
-      this.pollAllDevices().catch((err) =>
-        this.logger.error(`Initial poll failed: ${err.message}`),
-      );
-    }, 10000);
+    // Initial poll after startup (delayed by 10 seconds) — only if polling is enabled
+    if (this.pollingEnabled) {
+      setTimeout(() => {
+        this.pollAllDevices().catch((err) =>
+          this.logger.error(`Initial poll failed: ${err.message}`),
+        );
+      }, 10000);
+    }
   }
 
   /**
-   * Main polling job - runs every 5 minutes
+   * Main polling job - runs every 30 seconds
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async scheduledPoll() {
+    if (!this.pollingEnabled) return;
     await this.pollAllDevices();
   }
 
   /**
-   * Metric collection job - runs every 1 minute
+   * Metric collection job - runs every 30 seconds (aligned with polling)
    */
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_30_SECONDS)
   async scheduledMetricCollection() {
+    if (!this.pollingEnabled) return;
     await this.collectMetricsFromAllDevices();
   }
 
@@ -75,7 +83,7 @@ export class NmsOrchestrationService implements OnModuleInit {
 
       // Fetch network assets from EMS Core
       const assets = await this.emsCoreClient.getNetworkAssets();
-      
+
       if (assets.length === 0) {
         this.logger.warn('No network assets found to poll');
         return;
@@ -113,9 +121,9 @@ export class NmsOrchestrationService implements OnModuleInit {
       return;
     }
 
-    const community = metadata?.snmpCommunity || 'public';
-    const version = metadata?.snmpVersion || '2c';
-    const port = metadata?.snmpPort || 161;
+    const community = metadata?.snmpCommunity || metadata?.snmp_community || 'public';
+    const version = metadata?.snmpVersion || metadata?.snmp_version || '2c';
+    const port = metadata?.snmpPort || metadata?.snmp_port || 161;
 
     let status = this.deviceStatuses.get(id);
     if (!status) {
@@ -144,7 +152,7 @@ export class NmsOrchestrationService implements OnModuleInit {
         if (!status.isReachable) {
           // Device came back online
           this.logger.log(`Device ${name} is now reachable`);
-          
+
           await this.emsCoreClient.createEvent({
             source: 'nms',
             severity: 'info',
@@ -187,11 +195,11 @@ export class NmsOrchestrationService implements OnModuleInit {
       } else {
         // Device is down
         status.consecutiveFailures++;
-        
+
         if (status.isReachable) {
           // Device just went down
           this.logger.error(`Device ${name} is unreachable (${ipAddress})`);
-          
+
           await this.emsCoreClient.createEvent({
             source: 'nms',
             severity: 'critical',
@@ -249,12 +257,16 @@ export class NmsOrchestrationService implements OnModuleInit {
       const asset = assets.find((a) => a.id === status.assetId);
       if (!asset || !asset.ipAddress) continue;
 
+      const community = asset.metadata?.snmpCommunity || asset.metadata?.snmp_community || 'public';
+      const version = asset.metadata?.snmpVersion || asset.metadata?.snmp_version || '2c';
+      const port = asset.metadata?.snmpPort || asset.metadata?.snmp_port || 161;
+
       try {
         const deviceMetrics = await this.snmpService.collectMetrics(
           asset.ipAddress,
-          asset.metadata?.snmpCommunity || 'public',
-          asset.metadata?.snmpVersion || '2c',
-          asset.metadata?.snmpPort || 161,
+          community,
+          version,
+          port,
         );
 
         // Add metrics for this device
@@ -350,9 +362,10 @@ export class NmsOrchestrationService implements OnModuleInit {
    */
   getStatus() {
     const devices = Array.from(this.deviceStatuses.values());
-    
+
     return {
       isPolling: this.isPolling,
+      pollingEnabled: this.pollingEnabled,
       totalDevices: devices.length,
       reachableDevices: devices.filter((d) => d.isReachable).length,
       unreachableDevices: devices.filter((d) => !d.isReachable).length,

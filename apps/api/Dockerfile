@@ -23,6 +23,9 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
+# Install net-snmp native dependencies for SNMP polling
+RUN apk add --no-cache net-snmp-libs net-snmp
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001

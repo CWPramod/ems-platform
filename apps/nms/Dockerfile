@@ -1,35 +1,43 @@
-# NMS Module - Dockerfile
+# NMS Module - Dockerfile (monorepo-compatible)
 
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
+# Copy root and NMS package files
 COPY package*.json ./
+COPY apps/nms/package*.json ./apps/nms/
+COPY apps/nms/tsconfig*.json ./apps/nms/
+COPY apps/nms/nest-cli.json ./apps/nms/
 
 # Install dependencies
-RUN npm ci --only=production
+WORKDIR /app/apps/nms
+RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy NMS source code
+COPY apps/nms/src ./src
 
 # Build TypeScript
-RUN npm run build
+RUN npx nest build
 
 # Production image
 FROM node:18-alpine
 
 WORKDIR /app
 
-# Install net-snmp dependencies
+# Install net-snmp native dependencies
 RUN apk add --no-cache \
     net-snmp-libs \
     net-snmp
 
-# Copy built files
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
+# Copy package files for production install
+COPY apps/nms/package*.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Copy built files from builder
+COPY --from=builder /app/apps/nms/dist ./dist
 
 # Set environment variables
 ENV NODE_ENV=production

@@ -117,6 +117,32 @@ services:
     networks:
       - ems-network
 
+  # NMS Module (Network Management / SNMP Discovery)
+  nms:
+    build:
+      context: .
+      dockerfile: apps/nms/Dockerfile
+    container_name: ems-nms
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      NMS_PORT: 3001
+      NMS_POLLING_ENABLED: ${NMS_POLLING_ENABLED:-false}
+      EMS_CORE_URL: http://api:3100
+    ports:
+      - "${NMS_PORT:-3001}:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+    networks:
+      - ems-network
+
   # React Frontend
   web:
     build:

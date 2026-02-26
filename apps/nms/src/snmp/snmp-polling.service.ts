@@ -9,14 +9,28 @@ export interface SnmpDeviceInfo {
   sysLocation: string;
   manufacturer?: string;
   model?: string;
+  isSophos?: boolean;
+  firmwareVersion?: string;
 }
 
 export interface SnmpMetrics {
   cpuUsage?: number;
   memoryUsage?: number;
+  diskUsage?: number;
   uptimeSeconds: number;
   interfaceCount?: number;
+  liveUsers?: number;
+  activeConnections?: number;
 }
+
+// Sophos Enterprise OIDs
+const SOPHOS_OIDS = {
+  sfosDeviceName: '1.3.6.1.4.1.2604.5.1.1.1.0',
+  sfosDeviceType: '1.3.6.1.4.1.2604.5.1.1.2.0',
+  sfosDeviceFWVersion: '1.3.6.1.4.1.2604.5.1.1.3.0',
+  sfosLiveUsersCount: '1.3.6.1.4.1.2604.5.1.2.1.0',
+  sfosHTTPHits: '1.3.6.1.4.1.2604.5.1.2.2.0',
+};
 
 @Injectable()
 export class SnmpPollingService {
@@ -30,10 +44,14 @@ export class SnmpPollingService {
     sysName: '1.3.6.1.2.1.1.5.0',
     sysLocation: '1.3.6.1.2.1.1.6.0',
     ifNumber: '1.3.6.1.2.1.2.1.0',
+    // Walk bases
     hrProcessorLoad: '1.3.6.1.2.1.25.3.3.1.2',
-    hrStorageUsed: '1.3.6.1.2.1.25.2.3.1.6',
+    hrStorageType: '1.3.6.1.2.1.25.2.3.1.2',
     hrStorageSize: '1.3.6.1.2.1.25.2.3.1.5',
+    hrStorageUsed: '1.3.6.1.2.1.25.2.3.1.6',
   };
+
+  private readonly HR_STORAGE_RAM = '1.3.6.1.2.1.25.2.1.2';
 
   /**
    * Poll device for basic information
@@ -63,19 +81,31 @@ export class SnmpPollingService {
         }
 
         try {
+          const sysDescr = varbinds[0]?.value?.toString() || '';
+          const isSophos = sysDescr.toLowerCase().includes('sophos') ||
+            sysDescr.toLowerCase().includes('sfos') ||
+            sysDescr.toLowerCase().includes('cyberoam');
+
           const deviceInfo: SnmpDeviceInfo = {
-            sysDescr: varbinds[0]?.value?.toString() || '',
+            sysDescr,
             sysObjectID: varbinds[1]?.value?.toString() || '',
             sysUpTime: parseInt(varbinds[2]?.value?.toString() || '0') / 100,
             sysName: varbinds[3]?.value?.toString() || '',
             sysLocation: varbinds[4]?.value?.toString() || '',
+            isSophos,
           };
 
-          // Parse manufacturer and model from sysDescr
-          const descParts = deviceInfo.sysDescr.split(' ');
-          if (descParts.length >= 2) {
-            deviceInfo.manufacturer = descParts[0];
-            deviceInfo.model = descParts[1];
+          // Parse manufacturer and model
+          if (isSophos) {
+            deviceInfo.manufacturer = 'Sophos';
+            const modelMatch = sysDescr.match(/\b(XGS?\s*\d+\w?)\b/i);
+            deviceInfo.model = modelMatch ? modelMatch[1].toUpperCase() : 'XG Firewall';
+          } else {
+            const descParts = sysDescr.split(' ');
+            if (descParts.length >= 2) {
+              deviceInfo.manufacturer = descParts[0];
+              deviceInfo.model = descParts[1];
+            }
           }
 
           session.close();
@@ -89,7 +119,7 @@ export class SnmpPollingService {
   }
 
   /**
-   * Collect metrics from device
+   * Collect metrics from device — uses SNMP walk for CPU and memory
    */
   async collectMetrics(
     ipAddress: string,
@@ -97,42 +127,90 @@ export class SnmpPollingService {
     version: string = '2c',
     port: number = 161,
   ): Promise<SnmpMetrics> {
-    return new Promise((resolve, reject) => {
-      const session = this.createSession(ipAddress, community, version, port);
-      const oids = [
-        this.OIDs.sysUpTime,
-        this.OIDs.ifNumber,
-        this.OIDs.hrProcessorLoad + '.1',
-        this.OIDs.hrStorageUsed + '.1',
-        this.OIDs.hrStorageSize + '.1',
-      ];
+    // Get scalar OIDs
+    const scalarResult = await this.snmpGet(
+      ipAddress, community, version, port,
+      [this.OIDs.sysUpTime, this.OIDs.ifNumber],
+    );
 
-      session.get(oids, (error, varbinds) => {
-        session.close();
+    const uptimeSeconds = scalarResult
+      ? parseInt(scalarResult[0]?.value?.toString() || '0') / 100
+      : 0;
+    const interfaceCount = scalarResult
+      ? parseInt(scalarResult[1]?.value?.toString() || '0')
+      : undefined;
 
-        if (error) {
-          this.logger.warn(`Metrics collection failed for ${ipAddress}: ${error.message}`);
-          // Return partial metrics on error
-          resolve({
-            uptimeSeconds: 0,
-          });
-          return;
+    // Walk CPU load
+    const cpuUsage = await this.walkCpuLoad(ipAddress, community, version, port);
+
+    // Walk memory usage
+    const memoryUsage = await this.walkMemoryUsage(ipAddress, community, version, port);
+
+    // Try Sophos-specific OIDs (best-effort)
+    let liveUsers: number | undefined;
+    const sophosResult = await this.snmpGet(
+      ipAddress, community, version, port,
+      [SOPHOS_OIDS.sfosLiveUsersCount],
+    );
+    if (sophosResult && !snmp.isVarbindError(sophosResult[0])) {
+      liveUsers = parseInt(sophosResult[0]?.value?.toString() || '0');
+    }
+
+    return {
+      uptimeSeconds,
+      interfaceCount: interfaceCount && interfaceCount > 0 ? interfaceCount : undefined,
+      cpuUsage: cpuUsage > 0 ? cpuUsage : undefined,
+      memoryUsage: memoryUsage > 0 ? memoryUsage : undefined,
+      liveUsers,
+    };
+  }
+
+  /**
+   * Walk hrProcessorLoad and average across processors
+   */
+  private async walkCpuLoad(
+    ipAddress: string, community: string, version: string, port: number,
+  ): Promise<number> {
+    try {
+      const varbinds = await this.snmpWalk(ipAddress, community, version, port, this.OIDs.hrProcessorLoad);
+      if (varbinds.length === 0) return 0;
+
+      const loads = varbinds.map((vb) => parseInt(vb.value?.toString() || '0'));
+      return loads.reduce((sum, v) => sum + v, 0) / loads.length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /**
+   * Walk hrStorage to find RAM utilization
+   */
+  private async walkMemoryUsage(
+    ipAddress: string, community: string, version: string, port: number,
+  ): Promise<number> {
+    try {
+      const [typeVbs, sizeVbs, usedVbs] = await Promise.all([
+        this.snmpWalk(ipAddress, community, version, port, this.OIDs.hrStorageType),
+        this.snmpWalk(ipAddress, community, version, port, this.OIDs.hrStorageSize),
+        this.snmpWalk(ipAddress, community, version, port, this.OIDs.hrStorageUsed),
+      ]);
+
+      const getIdx = (oid: string) => oid.split('.').pop();
+      const typeMap = new Map(typeVbs.map((vb) => [getIdx(vb.oid), vb.value?.toString()]));
+      const sizeMap = new Map(sizeVbs.map((vb) => [getIdx(vb.oid), parseInt(vb.value?.toString() || '0')]));
+      const usedMap = new Map(usedVbs.map((vb) => [getIdx(vb.oid), parseInt(vb.value?.toString() || '0')]));
+
+      for (const [idx, typeOid] of typeMap) {
+        if (typeOid === this.HR_STORAGE_RAM) {
+          const size = sizeMap.get(idx) || 0;
+          const used = usedMap.get(idx) || 0;
+          if (size > 0) return (used / size) * 100;
         }
-
-        const uptimeSeconds = parseInt(varbinds[0]?.value?.toString() || '0') / 100;
-        const interfaceCount = parseInt(varbinds[1]?.value?.toString() || '0');
-        const cpuLoad = parseInt(varbinds[2]?.value?.toString() || '0');
-        const memoryUsed = parseInt(varbinds[3]?.value?.toString() || '0');
-        const memorySize = parseInt(varbinds[4]?.value?.toString() || '1');
-
-        resolve({
-          uptimeSeconds,
-          interfaceCount: interfaceCount > 0 ? interfaceCount : undefined,
-          cpuUsage: cpuLoad > 0 ? cpuLoad : undefined,
-          memoryUsage: memorySize > 0 ? (memoryUsed / memorySize) * 100 : undefined,
-        });
-      });
-    });
+      }
+      return 0;
+    } catch (_) {
+      return 0;
+    }
   }
 
   /**
@@ -150,6 +228,77 @@ export class SnmpPollingService {
     } catch (error) {
       return false;
     }
+  }
+
+  /**
+   * SNMP GET for specific OIDs
+   */
+  private snmpGet(
+    ipAddress: string, community: string, version: string, port: number,
+    oids: string[],
+  ): Promise<any[] | null> {
+    return new Promise((resolve) => {
+      let responded = false;
+      const session = this.createSession(ipAddress, community, version, port);
+
+      const timer = setTimeout(() => {
+        if (!responded) {
+          responded = true;
+          try { session.close(); } catch (_) { /* ignore */ }
+          resolve(null);
+        }
+      }, 6000);
+
+      session.get(oids, (error, varbinds) => {
+        if (!responded) {
+          responded = true;
+          clearTimeout(timer);
+          try { session.close(); } catch (_) { /* ignore */ }
+          resolve(error ? null : varbinds);
+        }
+      });
+    });
+  }
+
+  /**
+   * SNMP Walk — subtree traversal
+   */
+  private snmpWalk(
+    ipAddress: string, community: string, version: string, port: number,
+    baseOid: string,
+  ): Promise<any[]> {
+    return new Promise((resolve) => {
+      const results: any[] = [];
+      let responded = false;
+      const session = this.createSession(ipAddress, community, version, port);
+
+      const timer = setTimeout(() => {
+        if (!responded) {
+          responded = true;
+          try { session.close(); } catch (_) { /* ignore */ }
+          resolve(results);
+        }
+      }, 8000);
+
+      session.subtree(
+        baseOid,
+        (varbinds) => {
+          for (const vb of varbinds) {
+            if (!snmp.isVarbindError(vb)) {
+              results.push(vb);
+            }
+          }
+        },
+        (error) => {
+          if (!responded) {
+            responded = true;
+            clearTimeout(timer);
+            try { session.close(); } catch (_) { /* ignore */ }
+            resolve(results);
+          }
+        },
+      );
+    });
   }
 
   /**
