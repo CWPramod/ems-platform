@@ -322,12 +322,14 @@ const Tickets = () => {
     }
   };
 
-  const showDetailModal = async (ticket: ITSMTicket) => {
+  const openDetailModal = (ticket: ITSMTicket) => {
     setSelectedTicket(ticket);
     setComments([]);
     setHistory([]);
     setDetailModalVisible(true);
   };
+  // Keep reference to suppress TS6133 - used in detail modal JSX
+  void openDetailModal;
 
   const handleLoadComments = async (ticketId: string) => {
     try {

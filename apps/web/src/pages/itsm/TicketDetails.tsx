@@ -28,7 +28,6 @@ import {
   CloseCircleOutlined,
   CheckCircleOutlined,
   SyncOutlined,
-  WarningOutlined,
   FireOutlined,
   ClockCircleOutlined,
   UserOutlined,

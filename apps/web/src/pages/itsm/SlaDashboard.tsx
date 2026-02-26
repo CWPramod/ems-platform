@@ -644,9 +644,9 @@ const SlaDashboard: React.FC = () => {
                             <RechartsTooltip
                               contentStyle={{ background: '#1a2332', border: '1px solid #2a3a4e', borderRadius: 6 }}
                               labelStyle={{ color: '#e0e0e0' }}
-                              formatter={(value: number, _name: string, props: { payload: { breached: number; total: number } }) => [
-                                `${value}% (${props.payload.breached}/${props.payload.total})`, 'Breach Rate',
-                              ]}
+                              formatter={((value: number | undefined, _name: string | undefined, props: { payload: { breached: number; total: number } }) => [
+                                `${value ?? 0}% (${props.payload.breached}/${props.payload.total})`, 'Breach Rate',
+                              ]) as never}
                             />
                             <Bar dataKey="breachRate" radius={[0, 4, 4, 0]} barSize={28}>
                               {breachRateChartData.map((entry, idx) => (
@@ -681,7 +681,7 @@ const SlaDashboard: React.FC = () => {
                             <RechartsTooltip
                               contentStyle={{ background: '#1a2332', border: '1px solid #2a3a4e', borderRadius: 6 }}
                               labelStyle={{ color: '#e0e0e0' }}
-                              formatter={(value: number) => [`${value}%`, 'Compliance']}
+                              formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Compliance']}
                             />
                             <Area type="monotone" dataKey="compliance" stroke="#52c41a" strokeWidth={2}
                               fill="url(#colorCompliance)" />

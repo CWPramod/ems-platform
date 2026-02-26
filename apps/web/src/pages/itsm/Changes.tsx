@@ -110,7 +110,7 @@ const Changes = () => {
 
   // Conflict detection state
   const [conflictModalVisible, setConflictModalVisible] = useState(false);
-  const [conflictChangeId, setConflictChangeId] = useState<string | null>(null);
+  const [, setConflictChangeId] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<ITSMChange[]>([]);
   const [conflictsLoading, setConflictsLoading] = useState(false);
 
