@@ -5,6 +5,7 @@ export interface Asset {
   id: string;
   name: string;
   type: string; // Changed from enum to string to accept any type
+  ip?: string;
   ipAddress?: string;
   status: string; // Changed to string to accept any status
   metadata?: {
@@ -15,7 +16,32 @@ export interface Asset {
     manufacturer?: string;
     model?: string;
     location?: string;
+    [key: string]: any;
   };
+}
+
+export interface CreateAssetPayload {
+  name: string;
+  type: string;
+  ip: string;
+  vendor?: string;
+  model?: string;
+  location?: string;
+  tier?: string;
+  owner?: string;
+  status?: string;
+  monitoringEnabled?: boolean;
+  tags?: string[];
+  metadata?: Record<string, any>;
+}
+
+export interface DeviceInterfacePayload {
+  interfaceName: string;
+  interfaceIndex: number;
+  interfaceType: number;
+  speedMbps: number;
+  operationalStatus: string;
+  adminStatus: string;
 }
 
 export interface Event {
@@ -240,6 +266,100 @@ export class EmsCoreClient {
       this.logger.debug(`Updated metadata for asset ${assetId}`);
     } catch (error: any) {
       this.logger.error(`Failed to update asset metadata: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a new asset in EMS Core
+   */
+  async createAsset(data: CreateAssetPayload): Promise<Asset> {
+    try {
+      const response = await this.client.post('/assets', data);
+      const asset = response.data;
+
+      this.logger.log(`Created asset in EMS Core: ${asset.name} (${asset.id})`);
+
+      return {
+        ...asset,
+        ipAddress: asset.ipAddress || asset.ip,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to create asset in EMS Core: ${error.message}`);
+      if (error.response?.data) {
+        this.logger.error(`Error details: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Create interfaces for a device asset
+   */
+  async createDeviceInterfaces(
+    assetId: string,
+    interfaces: DeviceInterfacePayload[],
+  ): Promise<void> {
+    try {
+      await this.client.post(
+        `/api/v1/masters/devices/${assetId}/interfaces`,
+        { interfaces },
+      );
+
+      this.logger.log(
+        `Created ${interfaces.length} interfaces for asset ${assetId}`,
+      );
+    } catch (error: any) {
+      // If the endpoint doesn't exist, store interfaces as asset metadata instead
+      if (error.response?.status === 404) {
+        this.logger.warn(
+          `Interface endpoint not available, storing as asset metadata for ${assetId}`,
+        );
+        await this.updateAssetMetadata(assetId, {
+          discoveredInterfaces: interfaces,
+        });
+        return;
+      }
+      this.logger.error(
+        `Failed to create interfaces for asset ${assetId}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Find an existing asset by IP address
+   */
+  async findAssetByIp(ip: string): Promise<Asset | null> {
+    try {
+      const response = await this.client.get('/assets');
+
+      let assets: any[];
+
+      if (Array.isArray(response.data)) {
+        assets = response.data;
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        assets = response.data.data;
+      } else if (response.data.assets && Array.isArray(response.data.assets)) {
+        assets = response.data.assets;
+      } else {
+        return null;
+      }
+
+      const match = assets.find(
+        (a: any) => a.ip === ip || a.ipAddress === ip,
+      );
+
+      if (match) {
+        return {
+          ...match,
+          ipAddress: match.ipAddress || match.ip,
+        };
+      }
+
+      return null;
+    } catch (error: any) {
+      this.logger.error(`Failed to search for asset by IP ${ip}: ${error.message}`);
+      return null;
     }
   }
 

@@ -4,6 +4,7 @@ import { NmsController } from './nms/nms.controller';
 import { NmsOrchestrationService } from './nms/nms-orchestration.service';
 import { EmsCoreClient } from './ems-core/ems-core.client';
 import { SnmpPollingService } from './snmp/snmp-polling.service';
+import { DiscoveryService } from './discovery/discovery.service';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SnmpPollingService } from './snmp/snmp-polling.service';
     NmsOrchestrationService,
     EmsCoreClient,
     SnmpPollingService,
+    DiscoveryService,
   ],
   exports: [],
 })

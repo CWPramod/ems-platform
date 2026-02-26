@@ -46,10 +46,11 @@ async function bootstrap() {
   console.log(`  Polling:      ${pollingEnabled ? 'ENABLED (30s interval)' : 'DISABLED (discovery-only)'}`);
   console.log('');
   console.log('  Endpoints:');
-  console.log('    GET  /health           - Health check');
-  console.log('    GET  /nms/status       - NMS module status');
-  console.log('    POST /nms/discover     - Trigger device discovery');
-  console.log('    GET  /nms/metrics      - Current metrics');
+  console.log('    GET  /health                        - Health check');
+  console.log('    GET  /api/v1/nms/status             - NMS module status');
+  console.log('    POST /api/v1/nms/discover           - Start subnet auto-discovery');
+  console.log('    GET  /api/v1/nms/discover/status    - Discovery job status');
+  console.log('    GET  /api/v1/nms/metrics            - Current metrics');
   console.log('');
   if (pollingEnabled) {
     console.log('  Background Jobs:');

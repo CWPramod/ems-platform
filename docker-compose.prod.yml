@@ -1,70 +1,320 @@
-# Docker Compose Production Overrides
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# Production Docker Compose for EMS Platform
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   1. Copy .env.template to .env and fill in all required values
+#   2. Build images: docker-compose -f docker-compose.prod.yml build
+#      OR pull pre-built images from registry
 
 version: '3.8'
 
 services:
+  # ────────────────────────────────────────────────────────────────────────────
+  # PostgreSQL Database (internal only — not exposed to host)
+  # ────────────────────────────────────────────────────────────────────────────
   postgres:
+    image: postgres:15-alpine
+    container_name: ems-postgres
     restart: always
     environment:
+      POSTGRES_DB: ${DATABASE_NAME:-ems_platform}
+      POSTGRES_USER: ${DATABASE_USER:-ems_admin}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./phase1-implementation:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-ems_admin} -d ${DATABASE_NAME:-ems_platform}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ems-internal
     deploy:
       resources:
         limits:
           memory: 1G
-        reservations:
-          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  api:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Redis (internal only — not exposed to host)
+  # ────────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: ems-redis
     restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ems-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # API Backend (NestJS)
+  # ────────────────────────────────────────────────────────────────────────────
+  api:
+    image: canaris/ems-api:poc-1.0
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: ems-api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: production
-      # TypeORM should NOT auto-sync in production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-ems_platform}
+      DATABASE_USER: ${DATABASE_USER:-ems_admin}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      LICENSE_SIGNING_SECRET: ${LICENSE_SIGNING_SECRET:?LICENSE_SIGNING_SECRET is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      SNMP_MODE: ${SNMP_MODE:-production}
+      DATA_MODE: ${DATA_MODE:-production}
       TYPEORM_SYNC: "false"
-    volumes: []  # Remove source mount in production
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - ems-internal
     deploy:
       resources:
         limits:
           memory: 512M
-        reservations:
-          memory: 128M
-      replicas: 2
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # NMS Module (SNMP Discovery & Polling)
+  # ────────────────────────────────────────────────────────────────────────────
+  nms:
+    image: canaris/ems-nms:poc-1.0
+    build:
+      context: .
+      dockerfile: apps/nms/Dockerfile
+    container_name: ems-nms
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NMS_PORT: 3001
+      NMS_POLLING_ENABLED: ${NMS_POLLING_ENABLED:-true}
+      EMS_CORE_URL: http://api:3100
+      SNMP_COMMUNITY: ${SNMP_COMMUNITY:-public}
+      DISCOVERY_SUBNETS: ${DISCOVERY_SUBNETS:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - ems-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  web:
+  # ────────────────────────────────────────────────────────────────────────────
+  # ITSM Module
+  # ────────────────────────────────────────────────────────────────────────────
+  itsm:
+    image: canaris/ems-itsm:poc-1.0
+    build:
+      context: .
+      dockerfile: apps/itsm/Dockerfile
+    container_name: ems-itsm
     restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3005
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-ems_platform}
+      DATABASE_USER: ${DATABASE_USER:-ems_admin}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      EMS_CORE_URL: http://api:3100/api/v1
+      ITSM_MODULE_API_KEY: ${ITSM_MODULE_API_KEY:-}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - ems-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # ML Service (Python/FastAPI)
+  # ────────────────────────────────────────────────────────────────────────────
+  ml:
+    image: canaris/ems-ml:poc-1.0
+    build:
+      context: apps/ml-service
+      dockerfile: Dockerfile
+    container_name: ems-ml
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      EMS_CORE_URL: http://api:3100
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-ems_platform}
+      DATABASE_USER: ${DATABASE_USER:-ems_admin}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:?DATABASE_PASSWORD is required}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+    networks:
+      - ems-internal
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Probe Agent (Remote SNMP Poller)
+  # ────────────────────────────────────────────────────────────────────────────
+  probe:
+    image: canaris/ems-probe:poc-1.0
+    build:
+      context: apps/probe
+      dockerfile: Dockerfile
+    container_name: ems-probe
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PROBE_PORT: 3006
+      EMS_CORE_URL: http://api:3100
+      SNMP_COMMUNITY: ${SNMP_COMMUNITY:-public}
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3006/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - ems-internal
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Frontend (Nginx serving React SPA + API reverse proxy)
+  # Exposed on port 80 — the only externally accessible service
+  # ────────────────────────────────────────────────────────────────────────────
+  frontend:
+    image: canaris/ems-frontend:poc-1.0
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: ems-frontend
+    restart: always
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+    networks:
+      - ems-internal
     deploy:
       resources:
         limits:
           memory: 128M
-        reservations:
-          memory: 32M
-      replicas: 2
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 
-  # Nginx Reverse Proxy (optional, for SSL termination)
-  nginx:
-    image: nginx:alpine
-    container_name: ems-nginx
-    restart: always
-    ports:
-      - "443:443"
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - web
-      - api
-    networks:
-      - ems-network
-    profiles:
-      - with-ssl
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ems-internal:
+    driver: bridge

@@ -1,6 +1,6 @@
-# NMS Module - Dockerfile (monorepo-compatible)
-
-FROM node:18-alpine AS builder
+# Multi-stage Dockerfile for NMS Module
+# Stage 1: Build
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -14,21 +14,23 @@ COPY apps/nms/nest-cli.json ./apps/nms/
 WORKDIR /app/apps/nms
 RUN npm ci
 
-# Copy NMS source code
+# Copy NMS source code only
 COPY apps/nms/src ./src
 
 # Build TypeScript
 RUN npx nest build
 
-# Production image
-FROM node:18-alpine
+# Stage 2: Production — minimal image
+FROM node:20-alpine AS production
 
 WORKDIR /app
 
 # Install net-snmp native dependencies
-RUN apk add --no-cache \
-    net-snmp-libs \
-    net-snmp
+RUN apk add --no-cache net-snmp-libs net-snmp
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nestjs -u 1001
 
 # Copy package files for production install
 COPY apps/nms/package*.json ./
@@ -36,19 +38,20 @@ COPY apps/nms/package*.json ./
 # Install production dependencies only
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Copy built files from builder
+# Copy built files from builder (no source code)
 COPY --from=builder /app/apps/nms/dist ./dist
 
-# Set environment variables
+# Set ownership
+RUN chown -R nestjs:nodejs /app
+
+USER nestjs
+
 ENV NODE_ENV=production
 ENV NMS_PORT=3001
 
-# Expose port
 EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
-# Start application
 CMD ["node", "dist/main.js"]

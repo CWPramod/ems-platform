@@ -350,6 +350,33 @@ export class NmsOrchestrationService implements OnModuleInit {
   }
 
   /**
+   * Start polling a newly discovered device immediately
+   */
+  startPollingDevice(asset: Asset): void {
+    this.logger.log(`Started polling newly discovered device: ${asset.name} (${asset.ipAddress || asset.ip})`);
+
+    const ipAddress = asset.ipAddress || (asset as any).ip;
+
+    // Add to device status tracking
+    this.deviceStatuses.set(asset.id, {
+      assetId: asset.id,
+      lastPollTime: new Date(),
+      consecutiveFailures: 0,
+      isReachable: false,
+    });
+
+    // Immediately trigger a poll for this device
+    if (ipAddress) {
+      this.pollSingleDevice({
+        ...asset,
+        ipAddress,
+      }).catch((err) => {
+        this.logger.warn(`Initial poll failed for ${asset.name}: ${err.message}`);
+      });
+    }
+  }
+
+  /**
    * Manually trigger device discovery
    */
   async triggerDiscovery(): Promise<void> {

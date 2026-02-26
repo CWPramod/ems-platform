@@ -230,15 +230,20 @@ const Alerts = () => {
       },
     },
     {
-      title: 'Title',
+      title: 'Alert',
       key: 'title',
-      ellipsis: true,
+      ellipsis: false,
       render: (_, record) => (
-        <Tooltip title={record.event?.message}>
+        <Space direction="vertical" size={0}>
           <a onClick={() => showDetailModal(record)} style={{ fontWeight: 500 }}>
             {record.event?.title || 'Alert'}
           </a>
-        </Tooltip>
+          {record.event?.message && (
+            <Text type="secondary" style={{ fontSize: 12 }} ellipsis>
+              {record.event.message}
+            </Text>
+          )}
+        </Space>
       ),
     },
     {

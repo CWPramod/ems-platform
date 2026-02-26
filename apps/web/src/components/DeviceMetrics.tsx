@@ -189,47 +189,7 @@ const DeviceMetrics = ({ device }: DeviceMetricsProps) => {
         </div>
       )}
 
-      {/* Historical Charts Placeholder */}
-      {metrics.length > 0 && (
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
-          <h4 className="text-sm font-semibold text-gray-900 mb-4">Historical Trends</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-2">CPU Trend (Last 24h)</p>
-              <div className="h-32 flex items-end justify-around gap-1">
-                {[...Array(24)].map((_, i) => {
-                  const height = Math.random() * 100;
-                  return (
-                    <div
-                      key={i}
-                      className="flex-1 bg-blue-500 rounded-t"
-                      style={{ height: `${height}%` }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-            <div className="bg-white rounded-lg p-4">
-              <p className="text-xs text-gray-600 mb-2">Memory Trend (Last 24h)</p>
-              <div className="h-32 flex items-end justify-around gap-1">
-                {[...Array(24)].map((_, i) => {
-                  const height = Math.random() * 100;
-                  return (
-                    <div
-                      key={i}
-                      className="flex-1 bg-purple-500 rounded-t"
-                      style={{ height: `${height}%` }}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-gray-500 text-center mt-4">
-            📊 Full historical charts coming soon with time-series data
-          </p>
-        </div>
-      )}
+      {/* Historical trends are available on the Device Details page */}
     </div>
   );
 };

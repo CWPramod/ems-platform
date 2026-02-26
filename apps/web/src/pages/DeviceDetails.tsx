@@ -62,6 +62,7 @@ export default function DeviceDetails() {
   const [cpuHistory, setCpuHistory] = useState<any[]>([]);
   const [memoryHistory, setMemoryHistory] = useState<any[]>([]);
   const [bandwidthHistory, setBandwidthHistory] = useState<any[]>([]);
+  const [latencyHistory, setLatencyHistory] = useState<any[]>([]);
   const [timeRange, setTimeRange] = useState('24h');
   const [interfaces, setInterfaces] = useState<any[]>([]);
 
@@ -134,12 +135,26 @@ export default function DeviceDetails() {
         if (bwResponse.success && bwResponse.data?.data) {
           setBandwidthHistory(bwResponse.data.data.map((d: any) => ({
             time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            inMbps: d.inMbps ?? d.value * 0.6,
+            outMbps: d.outMbps ?? d.value * 0.4,
+          })));
+        } else {
+          setBandwidthHistory(generateMockBandwidthHistory());
+        }
+      } catch { setBandwidthHistory(generateMockBandwidthHistory()); }
+
+      // Fetch latency history
+      try {
+        const latResponse = await apiService.getPerformanceHistory(deviceId!, 'latency', timeRange);
+        if (latResponse.success && latResponse.data?.data) {
+          setLatencyHistory(latResponse.data.data.map((d: any) => ({
+            time: new Date(d.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             value: d.value,
           })));
         } else {
-          setBandwidthHistory(generateMockHistory('bandwidth'));
+          setLatencyHistory(generateMockHistory('latency'));
         }
-      } catch { setBandwidthHistory(generateMockHistory('bandwidth')); }
+      } catch { setLatencyHistory(generateMockHistory('latency')); }
 
     } catch (error: any) {
       console.error('Error fetching device details:', error);
@@ -151,11 +166,19 @@ export default function DeviceDetails() {
 
   const generateMockHistory = (metric: string) => {
     const points = timeRange === '24h' ? 24 : timeRange === '7d' ? 168 : 48;
-    const baseValue = metric === 'cpu' ? 40 : metric === 'memory' ? 60 : 300;
-    const variance = metric === 'cpu' ? 20 : metric === 'memory' ? 15 : 150;
+    const baseValue = metric === 'cpu' ? 40 : metric === 'memory' ? 60 : metric === 'latency' ? 15 : 300;
+    const variance = metric === 'cpu' ? 20 : metric === 'memory' ? 15 : metric === 'latency' ? 12 : 150;
     return Array.from({ length: Math.min(points, 24) }, (_, i) => ({
       time: `${String(i).padStart(2, '0')}:00`,
       value: parseFloat((baseValue + Math.random() * variance - variance / 2).toFixed(1)),
+    }));
+  };
+
+  const generateMockBandwidthHistory = () => {
+    return Array.from({ length: 24 }, (_, i) => ({
+      time: `${String(i).padStart(2, '0')}:00`,
+      inMbps: parseFloat((180 + Math.random() * 100 - 50).toFixed(1)),
+      outMbps: parseFloat((120 + Math.random() * 80 - 40).toFixed(1)),
     }));
   };
 
@@ -225,6 +248,18 @@ export default function DeviceDetails() {
       key: 'output',
       render: (_, record) => formatBytes(record.outOctets || record.outputOctets || 0),
     },
+    {
+      title: 'Errors',
+      key: 'errors',
+      render: (_, record) => {
+        const errors = (record.inErrors || 0) + (record.outErrors || 0);
+        return errors > 0 ? (
+          <Tag color="red">{errors}</Tag>
+        ) : (
+          <Tag color="green">0</Tag>
+        );
+      },
+    },
   ];
 
   if (!device && !loading) return null;
@@ -267,9 +302,17 @@ export default function DeviceDetails() {
           </Descriptions.Item>
           <Descriptions.Item label="Location">{device?.location}</Descriptions.Item>
           <Descriptions.Item label="Vendor / Model">{device?.vendor} {device?.model}</Descriptions.Item>
-          <Descriptions.Item label="OS / Firmware">{device?.metadata?.os || 'N/A'}</Descriptions.Item>
+          <Descriptions.Item label="OS / Firmware">{device?.metadata?.os || device?.metadata?.sysDescr || 'N/A'}</Descriptions.Item>
           <Descriptions.Item label="Last Health Check">
             {health?.lastHealthCheck ? new Date(health.lastHealthCheck).toLocaleString() : 'N/A'}
+          </Descriptions.Item>
+          <Descriptions.Item label="SNMP Status">
+            <Tag
+              icon={device?.status === 'online' ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+              color={device?.status === 'online' ? 'success' : 'error'}
+            >
+              {device?.status === 'online' ? 'Responding' : 'Not Responding'}
+            </Tag>
           </Descriptions.Item>
           <Descriptions.Item label="Monitoring">
             <Tag color={device?.monitoringEnabled ? 'green' : 'default'}>
@@ -460,16 +503,41 @@ export default function DeviceDetails() {
             </ResponsiveContainer>
           </Card>
         </Col>
-        <Col xs={24}>
-          <Card title={<><LineChartOutlined /> Bandwidth Usage</>}>
+        <Col xs={24} lg={12}>
+          <Card title={<><LineChartOutlined /> Interface Bandwidth (In/Out)</>}>
             <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={bandwidthHistory}>
+              <AreaChart data={bandwidthHistory}>
+                <defs>
+                  <linearGradient id="colorBwIn" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#1890ff" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="#1890ff" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorBwOut" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#faad14" stopOpacity={0.6}/>
+                    <stop offset="95%" stopColor="#faad14" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                 <XAxis dataKey="time" stroke="#8ba3c1" />
                 <YAxis stroke="#8ba3c1" />
                 <RechartsTooltip />
                 <Legend />
-                <Line type="monotone" dataKey="value" stroke="#faad14" strokeWidth={2} name="Bandwidth (Mbps)" dot={false} />
+                <Area type="monotone" dataKey="inMbps" stroke="#1890ff" fillOpacity={1} fill="url(#colorBwIn)" name="In (Mbps)" />
+                <Area type="monotone" dataKey="outMbps" stroke="#faad14" fillOpacity={1} fill="url(#colorBwOut)" name="Out (Mbps)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+        </Col>
+        <Col xs={24} lg={12}>
+          <Card title={<><LineChartOutlined /> Ping Latency</>}>
+            <ResponsiveContainer width="100%" height={250}>
+              <LineChart data={latencyHistory}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                <XAxis dataKey="time" stroke="#8ba3c1" />
+                <YAxis stroke="#8ba3c1" unit="ms" />
+                <RechartsTooltip />
+                <Legend />
+                <Line type="monotone" dataKey="value" stroke="#13c2c2" strokeWidth={2} name="Latency (ms)" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </Card>

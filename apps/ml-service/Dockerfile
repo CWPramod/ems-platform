@@ -1,56 +1,51 @@
 # Multi-stage Dockerfile for ML Service
+# Stage 1: Build stage — install Python dependencies
+FROM python:3.11-slim AS builder
 
-# Stage 1: Build stage
-FROM python:3.11-slim as builder
+WORKDIR /build
 
-# Set working directory
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    libpq-dev \
+# Install build-time system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
+# Copy requirements and install Python packages
 COPY requirements.txt .
-
-# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Stage 2: Runtime stage
+# Stage 2: Production — minimal runtime image
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
+# Install runtime-only system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+# Create non-root user
+RUN groupadd -g 1001 appuser && \
+    useradd -u 1001 -g appuser -s /bin/sh appuser
 
-# Copy application code
-COPY . .
+# Copy installed Python packages from builder
+COPY --from=builder /install /usr/local
 
-# Create directories for models and data
-RUN mkdir -p app/ml/models app/data logs
+# Copy only the application code (not tests, docs, configs)
+COPY app ./app
 
-# Set environment variables
+# Create directories for runtime data
+RUN mkdir -p app/ml/models app/data logs && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Expose port
 EXPOSE 8000
 
-# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/api/v1/health')"
 
-# Run the application
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

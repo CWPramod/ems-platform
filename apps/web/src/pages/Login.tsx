@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Input, Button, Card, Typography, Divider, Alert } from 'antd';
 import { UserOutlined, LockOutlined, LoginOutlined } from '@ant-design/icons';
 import { useAuth } from '../contexts/AuthContext';
-import CanarisLogo from '../components/CanarisLogo';
+import { GlobalOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
 
@@ -80,12 +80,29 @@ export default function Login() {
       >
         {/* Logo & Brand */}
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-            <CanarisLogo size="lg" />
+          <div style={{
+            marginBottom: '16px',
+            display: 'flex',
+            justifyContent: 'center',
+          }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              borderRadius: 12,
+              background: 'linear-gradient(135deg, #1e88e5, #1565c0)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <GlobalOutlined style={{ fontSize: 28, color: '#fff' }} />
+            </div>
           </div>
-          <Title level={4} style={{ margin: 0, color: '#8ba3c1', fontWeight: 400, letterSpacing: '0.5px' }}>
-            Enterprise Management System
+          <Title level={3} style={{ margin: 0, color: '#e6edf5', fontWeight: 600 }}>
+            Network Monitoring System
           </Title>
+          <Text style={{ color: '#5a7a9a', fontSize: '13px' }}>
+            Infrastructure Management Platform
+          </Text>
         </div>
 
         <Divider style={{ borderColor: '#1e3a5f' }} />
@@ -171,7 +188,7 @@ export default function Login() {
         {/* Footer */}
         <div style={{ textAlign: 'center', marginTop: '24px' }}>
           <Text style={{ fontSize: '12px', color: '#3d5a7a' }}>
-            &copy; 2026 Nesecure. All rights reserved.
+            &copy; 2026 Network Monitoring System. All rights reserved.
           </Text>
         </div>
       </Card>

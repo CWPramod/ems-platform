@@ -1,4 +1,4 @@
-// Professional Enterprise Dashboard - Phase 3 Enhanced
+// NMS Dashboard — Bank Demo Ready
 // apps/web/src/pages/Dashboard.tsx
 
 import { useState, useEffect, useCallback } from 'react';
@@ -14,6 +14,7 @@ import {
   Button,
   Typography,
   Select,
+  List,
   message,
 } from 'antd';
 import {
@@ -25,10 +26,14 @@ import {
   EyeOutlined,
   DashboardOutlined,
   AlertOutlined,
+  GatewayOutlined,
+  ClusterOutlined,
+  SafetyOutlined,
+  WifiOutlined,
 } from '@ant-design/icons';
 import {
-  AreaChart,
-  Area,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -39,6 +44,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useNavigate } from 'react-router-dom';
 import { apiService } from '../services/apiService';
+import { alertsAPI, assetsAPI } from '../services/api';
 
 const { Title, Text } = Typography;
 
@@ -60,8 +66,17 @@ interface DashboardSummary {
 
 interface ChartDataPoint {
   name: string;
+  bandwidth: number;
   cpu: number;
-  memory: number;
+}
+
+interface DeviceTypeCounts {
+  router: number;
+  switch: number;
+  firewall: number;
+  access_point: number;
+  network_device: number;
+  other: number;
 }
 
 export default function Dashboard() {
@@ -75,15 +90,26 @@ export default function Dashboard() {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [timeRange, setTimeRange] = useState<string>('24h');
   const [filterLoading, setFilterLoading] = useState(false);
+  const [recentAlerts, setRecentAlerts] = useState<any[]>([]);
+  const [typeCounts, setTypeCounts] = useState<DeviceTypeCounts>({
+    router: 0,
+    switch: 0,
+    firewall: 0,
+    access_point: 0,
+    network_device: 0,
+    other: 0,
+  });
 
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [devicesRes, summaryRes, slaRes, topCpuRes] = await Promise.allSettled([
+      const [devicesRes, summaryRes, slaRes, topBwRes, alertsRes, assetsRes] = await Promise.allSettled([
         apiService.getCriticalDevices(),
         apiService.getDashboardSummary(),
         apiService.getSLACompliance(),
-        apiService.getTopDevicesByMetric('cpu', 10),
+        apiService.getTopDevicesByMetric('bandwidth', 10),
+        alertsAPI.getAll({ status: 'open', limit: 10 }),
+        assetsAPI.getAll(),
       ]);
 
       if (devicesRes.status === 'fulfilled' && devicesRes.value.success) {
@@ -98,16 +124,48 @@ export default function Dashboard() {
         setSla(slaRes.value.data);
       }
 
-      if (topCpuRes.status === 'fulfilled' && topCpuRes.value.success) {
-        const topDevices = topCpuRes.value.data || [];
+      if (topBwRes.status === 'fulfilled' && topBwRes.value.success) {
+        const topDevices = topBwRes.value.data || [];
         const mapped: ChartDataPoint[] = topDevices.map((item: any) => ({
           name: item.device || item.assetId || 'Unknown',
-          cpu: typeof item.value === 'number' ? Math.round(item.value * 10) / 10 : 0,
-          memory: item.health?.memoryUtilization
-            ? Math.round(item.health.memoryUtilization * 10) / 10
+          bandwidth: typeof item.value === 'number' ? Math.round(item.value * 10) / 10 : 0,
+          cpu: item.health?.cpuUtilization
+            ? Math.round(item.health.cpuUtilization * 10) / 10
             : 0,
         }));
         setChartData(mapped);
+      }
+
+      // Recent critical alerts
+      if (alertsRes.status === 'fulfilled') {
+        const alertData = alertsRes.value.data || [];
+        const critAlerts = alertData
+          .filter((a: any) => a.event?.severity === 'critical' || a.event?.severity === 'warning')
+          .slice(0, 8);
+        setRecentAlerts(critAlerts);
+      }
+
+      // Device type counts
+      if (assetsRes.status === 'fulfilled') {
+        const allAssets = Array.isArray(assetsRes.value) ? assetsRes.value : (assetsRes.value as any).data || [];
+        const counts: DeviceTypeCounts = {
+          router: 0,
+          switch: 0,
+          firewall: 0,
+          access_point: 0,
+          network_device: 0,
+          other: 0,
+        };
+        for (const asset of allAssets) {
+          const t = asset.type?.toLowerCase();
+          if (t === 'router') counts.router++;
+          else if (t === 'switch') counts.switch++;
+          else if (t === 'firewall') counts.firewall++;
+          else if (t === 'access_point') counts.access_point++;
+          else if (t === 'network_device') counts.network_device++;
+          else counts.other++;
+        }
+        setTypeCounts(counts);
       }
 
       setSelectedStatus('all');
@@ -146,7 +204,7 @@ export default function Dashboard() {
     }
   };
 
-  // Compute counts from summary byStatus (server-side totals) when available
+  // Compute counts from summary byStatus
   const byStatus = summary?.byStatus || {};
   const totalDevices = Object.values(byStatus).reduce((sum: number, v: any) => sum + (v || 0), 0) || devices.length;
   const healthyDevices = byStatus.online || devices.filter((d) => d.status === 'online').length;
@@ -215,20 +273,14 @@ export default function Dashboard() {
       render: (type: string) => <Tag color="blue">{type}</Tag>,
     },
     {
-      title: 'Location',
-      dataIndex: 'location',
-      key: 'location',
-    },
-    {
       title: 'IP Address',
       dataIndex: 'ip',
       key: 'ip',
     },
     {
-      title: 'Tier',
-      dataIndex: 'tier',
-      key: 'tier',
-      render: (tier: number) => <Tag color="purple">Tier {tier}</Tag>,
+      title: 'Location',
+      dataIndex: 'location',
+      key: 'location',
     },
     {
       title: 'Status',
@@ -251,14 +303,6 @@ export default function Dashboard() {
       },
     },
     {
-      title: 'Monitoring',
-      dataIndex: 'monitoringEnabled',
-      key: 'monitoring',
-      render: (enabled: boolean) => (
-        <Tag color={enabled ? 'green' : 'default'}>{enabled ? 'Enabled' : 'Disabled'}</Tag>
-      ),
-    },
-    {
       title: 'Action',
       key: 'action',
       render: (_, record) => (
@@ -273,7 +317,7 @@ export default function Dashboard() {
     },
   ];
 
-  // Determine SLA progress color
+  // SLA styling
   const slaStrokeColor =
     slaPercent >= 90 ? '#52c41a' : slaPercent >= 70 ? '#faad14' : '#f5222d';
   const slaTagColor = slaPercent >= 90 ? 'green' : slaPercent >= 70 ? 'warning' : 'error';
@@ -282,15 +326,17 @@ export default function Dashboard() {
   // Table title based on filter
   const tableTitle =
     selectedStatus === 'all'
-      ? `Critical Devices (${devices.length})`
+      ? `All Devices (${devices.length})`
       : `${selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)} Devices (${devices.length})`;
+
+  const typeTotal = typeCounts.router + typeCounts.switch + typeCounts.firewall + typeCounts.access_point + typeCounts.network_device + typeCounts.other;
 
   return (
     <div>
       {/* Page Header */}
       <div style={{ marginBottom: '24px' }}>
-        <Title level={2}>Critical Devices Dashboard</Title>
-        <Text type="secondary">Real-time monitoring of Tier-1 critical infrastructure</Text>
+        <Title level={2}>Network Monitoring Dashboard</Title>
+        <Text type="secondary">Real-time visibility into network infrastructure</Text>
       </div>
 
       {/* Statistics Cards - Clickable */}
@@ -316,7 +362,7 @@ export default function Dashboard() {
             onClick={() => handleStatusFilter('online')}
           >
             <Statistic
-              title="Healthy"
+              title="Up"
               value={healthyDevices}
               prefix={<ArrowUpOutlined />}
               valueStyle={{ color: '#52c41a' }}
@@ -345,7 +391,7 @@ export default function Dashboard() {
             onClick={() => handleStatusFilter('critical')}
           >
             <Statistic
-              title="Critical"
+              title="Down"
               value={criticalDevices}
               prefix={<CloseCircleOutlined />}
               valueStyle={{ color: '#f5222d' }}
@@ -354,11 +400,39 @@ export default function Dashboard() {
         </Col>
       </Row>
 
-      {/* SLA & Health Metrics */}
+      {/* Network Overview + Health Score */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={8}>
+          <Card title="Network Overview" extra={<Tag color="blue">{typeTotal} Total</Tag>}>
+            <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space><GatewayOutlined style={{ color: '#1890ff' }} /><Text>Routers</Text></Space>
+                <Text strong style={{ fontSize: 20 }}>{typeCounts.router}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space><ClusterOutlined style={{ color: '#52c41a' }} /><Text>Switches</Text></Space>
+                <Text strong style={{ fontSize: 20 }}>{typeCounts.switch}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space><SafetyOutlined style={{ color: '#faad14' }} /><Text>Firewalls</Text></Space>
+                <Text strong style={{ fontSize: 20 }}>{typeCounts.firewall}</Text>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Space><WifiOutlined style={{ color: '#13c2c2' }} /><Text>Access Points</Text></Space>
+                <Text strong style={{ fontSize: 20 }}>{typeCounts.access_point}</Text>
+              </div>
+              {typeCounts.network_device + typeCounts.other > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Space><DashboardOutlined style={{ color: '#8ba3c1' }} /><Text>Other</Text></Space>
+                  <Text strong style={{ fontSize: 20 }}>{typeCounts.network_device + typeCounts.other}</Text>
+                </div>
+              )}
+            </Space>
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
           <Card
-            title="Health Score / SLA Compliance"
+            title="Health Score / SLA"
             extra={<Tag color={slaTagColor}>{slaTagText}</Tag>}
           >
             <div style={{ textAlign: 'center' }}>
@@ -369,62 +443,6 @@ export default function Dashboard() {
                 format={(pct) => `${pct}%`}
               />
               <div style={{ marginTop: '16px' }}>
-                <Space size="large">
-                  <Statistic
-                    title="Active Alerts"
-                    value={healthMetrics?.totalActiveAlerts ?? 0}
-                    prefix={<AlertOutlined />}
-                    valueStyle={{ fontSize: '18px', color: '#faad14' }}
-                  />
-                  <Statistic
-                    title="Critical Alerts"
-                    value={healthMetrics?.totalCriticalAlerts ?? 0}
-                    prefix={<CloseCircleOutlined />}
-                    valueStyle={{ fontSize: '18px', color: '#f5222d' }}
-                  />
-                </Space>
-              </div>
-              {sla && (
-                <div style={{ marginTop: '12px' }}>
-                  <Text type="secondary">
-                    SLA: {sla.compliant ?? 0} compliant / {sla.total ?? 0} total devices
-                    {sla.nonCompliant > 0 && (
-                      <span style={{ color: '#f5222d' }}> ({sla.nonCompliant} non-compliant)</span>
-                    )}
-                  </Text>
-                </div>
-              )}
-            </div>
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Device Distribution & Health Metrics">
-            <Space direction="vertical" style={{ width: '100%' }} size="large">
-              <div>
-                <Text>Online: </Text>
-                <Text strong style={{ fontSize: '24px', color: '#52c41a' }}>
-                  {healthyDevices}
-                </Text>
-              </div>
-              <div>
-                <Text>Warning: </Text>
-                <Text strong style={{ fontSize: '24px', color: '#faad14' }}>
-                  {warningDevices}
-                </Text>
-              </div>
-              <div>
-                <Text>Offline / Critical: </Text>
-                <Text strong style={{ fontSize: '24px', color: '#f5222d' }}>
-                  {criticalDevices}
-                </Text>
-              </div>
-              <div
-                style={{
-                  borderTop: '1px solid rgba(255,255,255,0.1)',
-                  paddingTop: '16px',
-                  marginTop: '4px',
-                }}
-              >
                 <Row gutter={16}>
                   <Col span={12}>
                     <Statistic
@@ -433,7 +451,7 @@ export default function Dashboard() {
                       precision={1}
                       suffix="%"
                       valueStyle={{
-                        fontSize: '20px',
+                        fontSize: '18px',
                         color:
                           (healthMetrics?.averageCpuUtilization ?? 0) > 80
                             ? '#f5222d'
@@ -450,7 +468,7 @@ export default function Dashboard() {
                       precision={1}
                       suffix="%"
                       valueStyle={{
-                        fontSize: '20px',
+                        fontSize: '18px',
                         color:
                           (healthMetrics?.averageMemoryUtilization ?? 0) > 80
                             ? '#f5222d'
@@ -462,14 +480,58 @@ export default function Dashboard() {
                   </Col>
                 </Row>
               </div>
-            </Space>
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card
+            title="Recent Critical Alerts"
+            extra={
+              <Button type="link" size="small" onClick={() => navigate('/alerts')}>
+                View All
+              </Button>
+            }
+          >
+            {recentAlerts.length > 0 ? (
+              <List
+                size="small"
+                dataSource={recentAlerts.slice(0, 5)}
+                renderItem={(alert: any) => (
+                  <List.Item style={{ padding: '6px 0' }}>
+                    <Space size="small" style={{ width: '100%' }}>
+                      <Tag
+                        color={alert.event?.severity === 'critical' ? 'red' : 'orange'}
+                        style={{ margin: 0, minWidth: 70, textAlign: 'center' }}
+                      >
+                        {(alert.event?.severity || 'info').toUpperCase()}
+                      </Tag>
+                      <div style={{ flex: 1, overflow: 'hidden' }}>
+                        <Text ellipsis style={{ fontSize: 13 }}>
+                          {alert.event?.title || 'Alert'}
+                        </Text>
+                        <br />
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          {alert.event?.asset?.name || 'Unknown device'} &middot; {formatTimeAgo(alert.createdAt)}
+                        </Text>
+                      </div>
+                    </Space>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <CheckCircleOutlined style={{ fontSize: 28, color: '#52c41a' }} />
+                <br />
+                <Text type="secondary">No critical alerts</Text>
+              </div>
+            )}
           </Card>
         </Col>
       </Row>
 
-      {/* Performance Charts */}
+      {/* Top 10 Devices by Bandwidth */}
       <Card
-        title="Top Devices by CPU Utilization"
+        title="Top 10 Devices by Bandwidth Utilization"
         extra={
           <Select
             value={timeRange}
@@ -486,34 +548,23 @@ export default function Dashboard() {
       >
         {chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="colorCpu" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#1890ff" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#1890ff" stopOpacity={0} />
-                </linearGradient>
-                <linearGradient id="colorMemory" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#52c41a" stopOpacity={0.8} />
-                  <stop offset="95%" stopColor="#52c41a" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
               <XAxis
-                dataKey="name"
-                tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 12 }}
-                angle={-30}
-                textAnchor="end"
-                height={60}
-              />
-              <YAxis
+                type="number"
                 tick={{ fill: 'rgba(255,255,255,0.65)' }}
-                domain={[0, 100]}
                 label={{
-                  value: 'Utilization %',
-                  angle: -90,
-                  position: 'insideLeft',
+                  value: 'Mbps',
+                  position: 'insideBottomRight',
+                  offset: -5,
                   style: { fill: 'rgba(255,255,255,0.45)' },
                 }}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: 'rgba(255,255,255,0.65)', fontSize: 12 }}
+                width={140}
               />
               <Tooltip
                 contentStyle={{
@@ -525,23 +576,9 @@ export default function Dashboard() {
                 itemStyle={{ color: 'rgba(255,255,255,0.85)' }}
               />
               <Legend wrapperStyle={{ color: 'rgba(255,255,255,0.65)' }} />
-              <Area
-                type="monotone"
-                dataKey="cpu"
-                stroke="#1890ff"
-                fillOpacity={1}
-                fill="url(#colorCpu)"
-                name="CPU %"
-              />
-              <Area
-                type="monotone"
-                dataKey="memory"
-                stroke="#52c41a"
-                fillOpacity={1}
-                fill="url(#colorMemory)"
-                name="Memory %"
-              />
-            </AreaChart>
+              <Bar dataKey="bandwidth" fill="#1890ff" name="Bandwidth (Mbps)" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="cpu" fill="#52c41a" name="CPU %" radius={[0, 4, 4, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         ) : (
           <div style={{ textAlign: 'center', padding: '60px 0' }}>
@@ -580,4 +617,18 @@ export default function Dashboard() {
       </Card>
     </div>
   );
+}
+
+function formatTimeAgo(dateStr: string): string {
+  if (!dateStr) return '';
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay > 0) return `${diffDay}d ago`;
+  if (diffHr > 0) return `${diffHr}h ago`;
+  if (diffMin > 0) return `${diffMin}m ago`;
+  return 'just now';
 }
