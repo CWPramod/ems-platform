@@ -6,7 +6,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import * as snmp from 'net-snmp';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const snmp = require('net-snmp');
 import { Asset, AssetType, AssetStatus } from '../../entities/asset.entity';
 import { DeviceHealth } from '../../entities/device-health.entity';
 import { DeviceMetricsHistory } from '../../entities/device-metrics-history.entity';
@@ -130,7 +131,15 @@ export class SnmpMonitorService {
    */
   private async pollDevice(device: Asset): Promise<void> {
     try {
-      let metrics: MetricsData;
+      let metrics: MetricsData = {
+        cpuUtilization: 0,
+        memoryUtilization: 0,
+        diskUtilization: 0,
+        bandwidthIn: 0,
+        bandwidthOut: 0,
+        packetLoss: 100,
+        latency: 0,
+      };
       let isOnline = false;
 
       if (this.snmpMode === 'production') {

@@ -270,6 +270,29 @@ export class EmsCoreClient {
   }
 
   /**
+   * Update an existing asset in EMS Core
+   */
+  async updateAsset(assetId: string, data: Partial<CreateAssetPayload>): Promise<Asset> {
+    try {
+      const response = await this.client.patch(`/assets/${assetId}`, data);
+      const asset = response.data;
+
+      this.logger.log(`Updated asset in EMS Core: ${asset.name} (${asset.id})`);
+
+      return {
+        ...asset,
+        ipAddress: asset.ipAddress || asset.ip,
+      };
+    } catch (error: any) {
+      this.logger.error(`Failed to update asset ${assetId} in EMS Core: ${error.message}`);
+      if (error.response?.data) {
+        this.logger.error(`Error details: ${JSON.stringify(error.response.data)}`);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Create a new asset in EMS Core
    */
   async createAsset(data: CreateAssetPayload): Promise<Asset> {

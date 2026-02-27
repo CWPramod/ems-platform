@@ -71,6 +71,7 @@ const VENDOR_MAP: { prefix: string; vendor: string; defaultType: string }[] = [
 
 const MAX_IPS_PER_SUBNET = 1024;
 const MAX_SUBNETS = 5;
+const MAX_IPS_PER_REQUEST = 200;
 const BATCH_SIZE = 20;
 
 @Injectable()
@@ -183,6 +184,70 @@ export class DiscoveryService {
   }
 
   /**
+   * Start a discovery job for an explicit list of IPs (no CIDR parsing).
+   * Used for targeted discovery of known static IPs (e.g., branch WAN links).
+   */
+  async startDiscoveryByIPs(
+    ips: string[],
+    community: string = 'public',
+  ): Promise<DiscoveryJob> {
+    if (!ips || ips.length === 0) {
+      throw new Error('At least one IP address is required');
+    }
+
+    if (ips.length > MAX_IPS_PER_REQUEST) {
+      throw new Error(
+        `Maximum ${MAX_IPS_PER_REQUEST} IPs per request, got ${ips.length}`,
+      );
+    }
+
+    // Validate each IP format (no CIDR, just plain IPs)
+    const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+    for (const ip of ips) {
+      if (!ipRegex.test(ip)) {
+        throw new Error(`Invalid IP address: "${ip}". Expected format: "10.0.1.1"`);
+      }
+      const parts = ip.split('.').map(Number);
+      if (parts.some((p) => p < 0 || p > 255)) {
+        throw new Error(`Invalid IP address: "${ip}". Each octet must be 0-255`);
+      }
+    }
+
+    const uniqueIPs = [...new Set(ips)];
+
+    const jobId = uuidv4();
+    const job: DiscoveryJob = {
+      jobId,
+      status: 'pending',
+      progress: 0,
+      totalIPs: uniqueIPs.length,
+      scannedIPs: 0,
+      devicesFound: 0,
+      devices: [],
+      subnets: ['targeted-ips'],
+      community,
+      startedAt: new Date().toISOString(),
+    };
+
+    this.jobs.set(jobId, job);
+    this.latestJobId = jobId;
+
+    this.logger.log(
+      `Discovery job ${jobId} created: scanning ${uniqueIPs.length} targeted IP(s)`,
+    );
+
+    // Run discovery asynchronously
+    this.runDiscovery(job, uniqueIPs, community).catch((err) => {
+      this.logger.error(`Discovery job ${jobId} failed: ${err.message}`);
+      job.status = 'failed';
+      job.error = err.message;
+      job.completedAt = new Date().toISOString();
+    });
+
+    return job;
+  }
+
+  /**
    * Get a discovery job by ID, or the latest job
    */
   getJob(jobId?: string): DiscoveryJob | null {
@@ -225,6 +290,63 @@ export class DiscoveryService {
           // Check if asset already exists
           const existingAsset = await this.emsCoreClient.findAssetByIp(device.ip);
           if (existingAsset) {
+            // If existing asset has 'pending-snmp' tag, update it with discovered data
+            const tags: string[] = existingAsset.metadata?.tags || (existingAsset as any).tags || [];
+            if (tags.includes('pending-snmp')) {
+              this.logger.log(`Updating pending-snmp asset ${existingAsset.id} (${device.ip}) with discovered data`);
+              try {
+                await this.emsCoreClient.updateAsset(existingAsset.id, {
+                  name: device.sysName || existingAsset.name,
+                  type: device.deviceType,
+                  vendor: device.vendor,
+                  model: device.model,
+                  status: 'active',
+                  monitoringEnabled: true,
+                  tags: tags.filter((t: string) => t !== 'pending-snmp').concat(['auto-discovered', device.vendor.toLowerCase()]),
+                  metadata: {
+                    ...existingAsset.metadata,
+                    snmpCommunity: community,
+                    snmpVersion: '2c',
+                    snmpPort: 161,
+                    sysDescr: device.sysDescr,
+                    sysObjectID: device.sysObjectID,
+                    sysContact: device.sysContact,
+                    sysLocation: device.sysLocation,
+                    discoveredAt: new Date().toISOString(),
+                    snmpPending: false,
+                  },
+                });
+
+                device.assetId = existingAsset.id;
+                this.logger.log(`Updated asset "${existingAsset.name}" (${existingAsset.id}) — ${device.vendor} ${device.deviceType}`);
+
+                // Create interfaces for the updated asset
+                if (device.interfaces.length > 0) {
+                  try {
+                    await this.emsCoreClient.createDeviceInterfaces(existingAsset.id, device.interfaces);
+                    this.logger.log(`Created ${device.interfaces.length} interfaces for ${existingAsset.name}`);
+                  } catch (err: any) {
+                    this.logger.warn(`Failed to create interfaces for ${existingAsset.name}: ${err.message}`);
+                  }
+                }
+
+                // Start polling the now-discovered device
+                try {
+                  this.orchestrationService.startPollingDevice({ ...existingAsset, status: 'active' });
+                } catch (err: any) {
+                  this.logger.warn(`Failed to start polling for ${existingAsset.name}: ${err.message}`);
+                }
+              } catch (err: any) {
+                this.logger.error(`Failed to update pending-snmp asset ${existingAsset.id}: ${err.message}`);
+                device.skipped = true;
+                device.skipReason = `Pending asset update failed: ${err.message}`;
+              }
+
+              job.devices.push(device);
+              job.devicesFound++;
+              continue;
+            }
+
             device.skipped = true;
             device.skipReason = 'Asset already exists';
             device.assetId = existingAsset.id;

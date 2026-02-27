@@ -1,0 +1,171 @@
+{
+  "customer": "AMC Cooperative Bank",
+  "description": "Static public IPs for all AMC branch WAN links — primary and secondary",
+  "generatedFrom": "AMC_STATIC_IP_details.xlsx",
+  "totalBranches": 18,
+  "totalIPs": 36,
+  "branches": [
+    {
+      "name": "HEAD Office",
+      "location": "Ahmednagar",
+      "address": "Plot no.33, Station Road, Market Yard, Ahilyanagar 414001",
+      "links": [
+        { "ip": "117.223.153.132", "type": "primary" },
+        { "ip": "115.242.171.106", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Kapad Bazar",
+      "location": "Ahmednagar",
+      "address": "Mission Compound, Kapad Bazar, Ahmednagar - 414001",
+      "links": [
+        { "ip": "103.108.45.44", "type": "primary" },
+        { "ip": "117.247.51.212", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Narayangaon Branch",
+      "location": "Pune",
+      "address": "Gala No. 14 to 17, Ground Floor, Vision Galaxy, Near Bus Stand, A/p Narayangaon, Ta. Junnar, Pune - 410504",
+      "links": [
+        { "ip": "103.221.74.192", "type": "primary" },
+        { "ip": "117.248.110.130", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Chhatrapati Sambhaji Nagar Branch",
+      "location": "Chhatrapati Sambhaji Nagar",
+      "address": "Plot no. 30, Friends Colony, Konkanwadi, Station Road - 431001",
+      "links": [
+        { "ip": "103.208.80.33", "type": "primary" },
+        { "ip": "103.151.16.106", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Chhatrapati Sambhaji Nagar Mondha Branch",
+      "location": "Chhatrapati Sambhaji Nagar",
+      "address": "CTS No. 13152, House no.2, New Rokdia Hanuman Soc., Near Telephone Building - 431001",
+      "links": [
+        { "ip": "103.208.80.124", "type": "primary" },
+        { "ip": "103.151.16.107", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Shrigonda Branch",
+      "location": "Ahmadnagar",
+      "address": "Kalkai Chowk, Opp. Nagar Palika, A/p Shrigonda, Dist. Ahmadnagar - 413701",
+      "links": [
+        { "ip": "122.252.239.95", "type": "primary" },
+        { "ip": "117.223.153.106", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Pathardi Branch",
+      "location": "Ahmadnagar",
+      "address": "Mainroad, At/Post. Pathardi, Dist. Ahmadnagar - 414102",
+      "links": [
+        { "ip": "45.119.11.27", "type": "primary" },
+        { "ip": "117.223.153.103", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Sonai Branch",
+      "location": "Ahmednagar",
+      "address": "CTS No.1297, Main Road, Sonai Peth, At/Post. Sonai, Newasa, Ahmednagar - 414102",
+      "links": [
+        { "ip": "203.192.220.205", "type": "primary" },
+        { "ip": "117.223.153.104", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Shirur Branch",
+      "location": "Pune",
+      "address": "House No.125, Adinath Ramaali, A/p Ghod Nadi, Pune - 412210",
+      "links": [
+        { "ip": "103.78.171.28", "type": "primary" },
+        { "ip": "59.95.99.119", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Kada Branch",
+      "location": "Beed",
+      "address": "Survey No.153 Plot No.3+4, Dhamangaon Road, At/Post. Kada, Tal: Asti, Dist: Beed - 414202",
+      "links": [
+        { "ip": "203.192.220.247", "type": "primary" },
+        { "ip": "61.2.228.113", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Gulmohor Road Branch",
+      "location": "Ahmednagar",
+      "address": "Mangal Housing Society, Gulmohor Road, Ahmednagar - 414003",
+      "links": [
+        { "ip": "103.108.45.45", "type": "primary" },
+        { "ip": "117.223.153.231", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Chitale Road Branch",
+      "location": "Ahmednagar",
+      "address": "Chaupati Karanja, Chitale Road, Ahmednagar - 414001",
+      "links": [
+        { "ip": "103.108.45.52", "type": "primary" },
+        { "ip": "117.217.122.37", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "MIDC Branch",
+      "location": "Ahmednagar",
+      "address": "Suraj Heights, Nagapur, Ahmednagar - 414111",
+      "links": [
+        { "ip": "103.108.45.51", "type": "primary" },
+        { "ip": "117.223.153.99", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Tarakpur Branch",
+      "location": "Ahmednagar",
+      "address": "Nagpal Building, Manmad Road, Ahmadnagar - 414003",
+      "links": [
+        { "ip": "103.108.45.46", "type": "primary" },
+        { "ip": "117.217.122.164", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Pune Branch",
+      "location": "Pune",
+      "address": "Plot No.131, Gultekadi, Market Yard, Pune - 411037",
+      "links": [
+        { "ip": "157.119.204.120", "type": "primary" },
+        { "ip": "103.215.167.175", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Jamkhed Branch",
+      "location": "Ahmadnagar",
+      "address": "Raut Building, Nagar Beed Road, Jamkhed, District Nagar - 413201",
+      "links": [
+        { "ip": "103.170.1.144", "type": "primary" },
+        { "ip": "117.223.153.102", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Dalmandai Branch (Main)",
+      "location": "Ahmednagar",
+      "address": "CTS NO. 1146, Dalmandai, Ahmednagar - 414001",
+      "links": [
+        { "ip": "103.108.45.47", "type": "primary" },
+        { "ip": "203.192.211.141", "type": "secondary" }
+      ]
+    },
+    {
+      "name": "Shevgaon Branch",
+      "location": "Ahmednagar",
+      "address": "H.No. 5408, Ambedkar Chowk, A/p Shevgaon, Dist. Ahmednagar - 414502",
+      "links": [
+        { "ip": "203.192.228.168", "type": "primary" },
+        { "ip": "117.223.153.105", "type": "secondary" }
+      ]
+    }
+  ]
+}

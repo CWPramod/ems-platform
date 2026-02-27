@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN npm install
 
 # Copy source code
 COPY tsconfig*.json ./
@@ -17,6 +17,9 @@ COPY src ./src
 
 # Build TypeScript
 RUN npx nest build
+
+# Prune dev dependencies after build
+RUN npm prune --omit=dev
 
 # Stage 2: Production
 FROM node:20-alpine AS production
@@ -30,11 +33,11 @@ RUN apk add --no-cache net-snmp-libs net-snmp
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
-# Copy package files for production install
-COPY package*.json ./
+# Copy production node_modules from builder (already pruned)
+COPY --from=builder /app/node_modules ./node_modules
 
-# Install production dependencies only
-RUN npm ci --omit=dev && npm cache clean --force
+# Copy package.json for runtime metadata
+COPY package.json ./
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist

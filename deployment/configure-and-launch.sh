@@ -43,19 +43,23 @@ fail()  { echo -e "${RED}[FAIL]${NC}  $*"; }
 SNMP_COMMUNITY=""
 DISCOVERY_SUBNETS=""
 SERVER_IP=""
+INVENTORY_FILE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --community)     SNMP_COMMUNITY="$2"; shift 2 ;;
     --subnets)       DISCOVERY_SUBNETS="$2"; shift 2 ;;
     --server-ip)     SERVER_IP="$2"; shift 2 ;;
+    --inventory)     INVENTORY_FILE="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 [--community STRING] [--subnets CIDRS] [--server-ip IP]"
+      echo "Usage: $0 [--community STRING] [--subnets CIDRS] [--server-ip IP] [--inventory PATH]"
       echo ""
       echo "Options:"
       echo "  --community    SNMP community string (default: public)"
       echo "  --subnets      Comma-separated CIDRs for auto-discovery"
       echo "  --server-ip    This server's IP for dashboard URL display"
+      echo "  --inventory    Path to branch inventory JSON file for static IP deployment"
+      echo "                 (assets are pre-registered; run discovery later when SNMP strings are available)"
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
@@ -251,9 +255,55 @@ if [ $ELAPSED -ge $TIMEOUT ]; then
   echo ""
 fi
 
+# ─── Import inventory (if provided) ──────────────────────────────────────────
+
+INVENTORY_IMPORTED=false
+
+if [ -n "$INVENTORY_FILE" ]; then
+  echo ""
+  info "Importing branch inventory from ${INVENTORY_FILE}..."
+
+  # Resolve path relative to script directory if not absolute
+  if [[ "$INVENTORY_FILE" != /* ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -f "${SCRIPT_DIR}/${INVENTORY_FILE}" ]; then
+      INVENTORY_FILE="${SCRIPT_DIR}/${INVENTORY_FILE}"
+    fi
+  fi
+
+  if [ ! -f "$INVENTORY_FILE" ]; then
+    warn "Inventory file not found: ${INVENTORY_FILE}"
+    echo "  Skipping inventory import."
+  elif ! command -v jq &> /dev/null; then
+    warn "jq is not installed — cannot import inventory."
+    echo "  Install jq and run: ./import-inventory.sh --inventory ${INVENTORY_FILE}"
+  else
+    IMPORT_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/import-inventory.sh"
+    if [ -f "$IMPORT_SCRIPT" ]; then
+      bash "$IMPORT_SCRIPT" --inventory "$INVENTORY_FILE" --api-url "http://localhost:3100" && INVENTORY_IMPORTED=true || true
+    else
+      warn "import-inventory.sh not found. Run it manually after deployment."
+    fi
+  fi
+fi
+
 # ─── Auto-trigger SNMP discovery ──────────────────────────────────────────────
 
 DISCOVERY_JOB_ID=""
+
+# If inventory was imported and community string is not the default, trigger IP discovery
+if [ "$INVENTORY_IMPORTED" = true ] && [ -n "$SNMP_COMMUNITY" ] && [ "$SNMP_COMMUNITY" != "public" ]; then
+  echo ""
+  info "Triggering IP-targeted discovery for inventory..."
+
+  TRIGGER_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/trigger-discovery.sh"
+  if [ -f "$TRIGGER_SCRIPT" ]; then
+    bash "$TRIGGER_SCRIPT" \
+      --inventory "$INVENTORY_FILE" \
+      --community "$SNMP_COMMUNITY" \
+      --nms-url "http://localhost:3001" || true
+  fi
+fi
 
 if [ -n "$DISCOVERY_SUBNETS" ]; then
   echo ""

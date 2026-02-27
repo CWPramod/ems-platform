@@ -25,7 +25,6 @@ import {
   SyncOutlined,
   EyeOutlined,
   DashboardOutlined,
-  AlertOutlined,
   GatewayOutlined,
   ClusterOutlined,
   SafetyOutlined,

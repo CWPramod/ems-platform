@@ -90,6 +90,9 @@ sudo usermod -aG docker $USER
 | `load-images.sh` | Loads images from the `.tar.gz` on the client server |
 | `configure-and-launch.sh` | Interactive setup: generates secrets, configures SNMP, launches services, triggers discovery |
 | `validate-deployment.sh` | Post-deployment health check across all services, APIs, and storage |
+| `import-inventory.sh` | Imports branch inventory (static IPs) as pre-registered assets |
+| `trigger-discovery.sh` | Triggers IP-targeted SNMP discovery for inventory devices |
+| `inventories/` | Branch inventory JSON files (e.g., `amc-branches.json`) |
 | `../docker-compose.prod.yml` | Production Compose file (standalone, all 8 services) |
 | `../.env.template` | Environment variable template with documentation |
 
@@ -107,7 +110,8 @@ docker compose -f docker-compose.prod.yml build
 # Transfer to client
 scp ems-platform-poc-1.0.tar.gz user@client:/opt/ems/
 scp docker-compose.prod.yml .env.template user@client:/opt/ems/
-scp deployment/{load-images.sh,configure-and-launch.sh,validate-deployment.sh} user@client:/opt/ems/
+scp deployment/{load-images.sh,configure-and-launch.sh,validate-deployment.sh,import-inventory.sh,trigger-discovery.sh} user@client:/opt/ems/
+scp -r deployment/inventories user@client:/opt/ems/
 
 # On client server
 cd /opt/ems
@@ -266,6 +270,7 @@ All configuration is in `.env` (created from `.env.template`). Key variables:
 | `SNMP_MODE` | `production` | `production` for real devices, `simulation` for testing |
 | `NMS_POLLING_ENABLED` | `true` | Enable/disable background SNMP polling |
 | `DISCOVERY_SUBNETS` | *(empty)* | Comma-separated CIDRs for auto-discovery |
+| `DISCOVERY_IPS` | *(empty)* | Comma-separated static IPs for targeted discovery |
 
 ### Operation
 
@@ -430,6 +435,80 @@ Unrecognized devices fall back to keyword detection from sysDescr.
 - Maximum 5 subnets per request
 - Subnet mask must be /16 to /30
 - IPs are scanned in parallel batches of 20
+
+---
+
+## Inventory-Based Deployment (Static IPs)
+
+For clients with known static IPs (e.g., branch WAN links) where CIDR subnet scanning is impractical or where SNMP community strings are not yet available.
+
+### Workflow
+
+**Phase 1 — Pre-register assets (no SNMP needed):**
+
+```bash
+# Import branch inventory — creates assets in "unknown" status
+./import-inventory.sh --inventory inventories/amc-branches.json
+
+# Or include during initial deployment
+./configure-and-launch.sh \
+  --inventory inventories/amc-branches.json \
+  --server-ip 10.0.1.50
+```
+
+Assets appear in the dashboard immediately with status "unknown" and tag "pending-snmp". No SNMP traffic is generated.
+
+**Phase 2 — Activate monitoring (when SNMP strings are available):**
+
+```bash
+# Trigger targeted discovery on the exact IPs from inventory
+./trigger-discovery.sh \
+  --inventory inventories/amc-branches.json \
+  --community <community-string>
+```
+
+NMS probes only the listed IPs (not entire subnets), discovers device types/vendors/interfaces, updates the pre-registered assets, and starts polling.
+
+### Inventory file format
+
+Inventory files live in `deployment/inventories/` and follow this structure:
+
+```json
+{
+  "customer": "Customer Name",
+  "branches": [
+    {
+      "name": "Branch Name",
+      "location": "City",
+      "address": "Full address",
+      "links": [
+        { "ip": "10.0.1.1", "type": "primary" },
+        { "ip": "10.0.1.2", "type": "secondary" }
+      ]
+    }
+  ]
+}
+```
+
+### IP-targeted discovery API
+
+In addition to CIDR-based discovery, you can discover specific IPs directly:
+
+```bash
+curl -X POST http://localhost:3001/api/v1/nms/discover/ips \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "ips": ["10.0.1.1", "10.0.1.2", "192.168.1.1"],
+    "community": "mystring"
+  }'
+```
+
+This endpoint:
+- Accepts up to 200 IPs per request
+- Validates IP format (no CIDR notation)
+- Updates pre-registered assets with `pending-snmp` tag instead of creating duplicates
+- Returns the same `{ jobId, message, totalIPs }` response as subnet discovery
+- Job status is checked via the same `GET /discover/status` endpoint
 
 ---
 

@@ -16,6 +16,11 @@ interface DiscoverBody {
   community?: string;
 }
 
+interface DiscoverByIPsBody {
+  ips: string[];
+  community?: string;
+}
+
 @Controller('api/v1/nms')
 export class NmsController {
   constructor(
@@ -58,6 +63,41 @@ export class NmsController {
         message: `Discovery started for ${body.subnets.length} subnet(s)`,
         totalIPs: job.totalIPs,
         subnets: body.subnets,
+      };
+    } catch (err: any) {
+      throw new BadRequestException(err.message);
+    }
+  }
+
+  @Post('discover/ips')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async startDiscoveryByIPs(@Body() body: DiscoverByIPsBody) {
+    if (!body.ips || !Array.isArray(body.ips) || body.ips.length === 0) {
+      throw new BadRequestException(
+        'ips is required and must be a non-empty array of IP addresses (e.g. ["10.0.1.1", "10.0.1.2"])',
+      );
+    }
+
+    // Validate each IP format (no CIDR, plain IPs only)
+    const ipRegex = /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+    for (const ip of body.ips) {
+      if (!ipRegex.test(ip)) {
+        throw new BadRequestException(
+          `Invalid IP address: "${ip}". Expected format: "10.0.1.1" (no CIDR notation)`,
+        );
+      }
+    }
+
+    try {
+      const job = await this.discoveryService.startDiscoveryByIPs(
+        body.ips,
+        body.community || 'public',
+      );
+
+      return {
+        jobId: job.jobId,
+        message: `Discovery started for ${job.totalIPs} targeted IP(s)`,
+        totalIPs: job.totalIPs,
       };
     } catch (err: any) {
       throw new BadRequestException(err.message);

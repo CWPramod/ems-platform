@@ -20,6 +20,9 @@ COPY apps/nms/src ./src
 # Build TypeScript
 RUN npx nest build
 
+# Prune dev dependencies after build
+RUN npm prune --omit=dev
+
 # Stage 2: Production — minimal image
 FROM node:20-alpine AS production
 
@@ -32,11 +35,11 @@ RUN apk add --no-cache net-snmp-libs net-snmp
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nestjs -u 1001
 
-# Copy package files for production install
-COPY apps/nms/package*.json ./
+# Copy production node_modules from builder (already pruned)
+COPY --from=builder /app/apps/nms/node_modules ./node_modules
 
-# Install production dependencies only
-RUN npm ci --omit=dev && npm cache clean --force
+# Copy package.json for runtime metadata
+COPY apps/nms/package.json ./
 
 # Copy built files from builder (no source code)
 COPY --from=builder /app/apps/nms/dist ./dist
